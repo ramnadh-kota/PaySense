@@ -4,6 +4,7 @@ class CreditCardWidget extends StatelessWidget {
   final String bankName;
   final String cardNumber;
   final String availableLimit;
+  final String creditLimit;
   final Color cardColor;
 
   const CreditCardWidget({
@@ -11,13 +12,13 @@ class CreditCardWidget extends StatelessWidget {
     required this.bankName,
     required this.cardNumber,
     required this.availableLimit,
+    required this.creditLimit,
     required this.cardColor,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: cardColor,
@@ -26,54 +27,70 @@ class CreditCardWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 bankName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
-              const Icon(
-                Icons.credit_card,
-                color: Colors.white,
-              ),
+              const Icon(Icons.credit_card_rounded, color: Colors.white),
             ],
           ),
-
-          const SizedBox(height: 30),
-
+          const SizedBox(height: 24),
           Text(
-            "**** **** **** $cardNumber",
-            style: const TextStyle(
-              color: Colors.white,
-              letterSpacing: 2,
-              fontSize: 18,
-            ),
+            '**** **** **** $cardNumber',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.white,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
-
-          const SizedBox(height: 30),
-
-          const Text(
-            "Available Limit",
-            style: TextStyle(
-              color: Colors.white70,
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            availableLimit,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-            ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Available Credit',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      availableLimit,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Credit Limit',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      creditLimit,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
