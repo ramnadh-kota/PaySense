@@ -1,0 +1,31 @@
+import 'package:flutter/material.dart';
+import '../../features/ai/ai_screen.dart';
+import '../../features/analytics/analytics_screen.dart';
+import '../../features/navigation/navigation_screen.dart';
+import '../../features/profile/profile_screen.dart';
+import '../../features/splash/splash_screen.dart';
+import '../../features/wallet/wallet_screen.dart';
+import 'app_routes.dart';
+
+class AppRouter {
+  AppRouter._();
+
+  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case AppRoutes.splash:
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      case AppRoutes.navigation:
+        return MaterialPageRoute(builder: (_) => const NavigationScreen());
+      case AppRoutes.wallet:
+        return MaterialPageRoute(builder: (_) => const WalletScreen());
+      case AppRoutes.analytics:
+        return MaterialPageRoute(builder: (_) => const AnalyticsScreen());
+      case AppRoutes.aiCoach:
+        return MaterialPageRoute(builder: (_) => const AiScreen());
+      case AppRoutes.profile:
+        return MaterialPageRoute(builder: (_) => const ProfileScreen());
+      default:
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+    }
+  }
+}

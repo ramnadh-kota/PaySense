@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:paysense/core/constants/app_colors.dart';
+import 'package:paysense/core/routes/app_routes.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,83 +11,61 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-
-    Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const DashboardScreen(),
-        ),
-      );
+    _timer = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, AppRoutes.navigation);
     });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppColors.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-
-            Icon(
-              Icons.account_balance_wallet_rounded,
-              size: 90,
-              color: Color(0xFF4F46E5),
-            ),
-
-            SizedBox(height: 25),
-
-            Text(
-              "PaySense",
-              style: TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4F46E5),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet_rounded,
+                size: 88,
+                color: AppColors.primary,
               ),
             ),
-
-            SizedBox(height: 12),
-
+            const SizedBox(height: 24),
             Text(
-              "AI Powered Personal Finance",
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 16,
-              ),
+              'PaySense',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
             ),
-
-            SizedBox(height: 50),
-
-            CircularProgressIndicator(
-              color: Color(0xFF4F46E5),
-            )
+            const SizedBox(height: 8),
+            Text(
+              'AI powered personal finance',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: 32),
+            const CircularProgressIndicator(color: AppColors.primary),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFF8FAFC),
-      body: Center(
-        child: Text(
-          "Dashboard Coming Soon",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
         ),
       ),
     );
