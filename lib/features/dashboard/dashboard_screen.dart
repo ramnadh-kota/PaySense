@@ -5,6 +5,7 @@ import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
+import '../transactions/presentation/add_expense_screen.dart';
 import 'widgets/quick_action_button.dart';
 import 'widgets/summary_card.dart';
 import 'widgets/transaction_item.dart';
@@ -61,7 +62,12 @@ class DashboardScreen extends ConsumerWidget {
     required String formattedDate,
     required NumberFormat currencyFormatter,
     required _DashboardTotals totals,
+    List<Transaction> transactions = const <Transaction>[],
   }) {
+    final recentTransactions = transactions.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final latestTransactions = recentTransactions.take(5).toList();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
       child: Column(
@@ -212,20 +218,45 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
+            children: [
               QuickActionButton(
                 icon: Icons.wallet_rounded,
                 label: 'Add Expense',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (context) => const AddExpenseScreen(),
+                    ),
+                  );
+                },
               ),
               QuickActionButton(
                 icon: Icons.account_balance_wallet_rounded,
                 label: 'Add Income',
+                onTap: () {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Coming Soon')));
+                },
               ),
               QuickActionButton(
                 icon: Icons.swap_horiz_rounded,
                 label: 'Transfer',
+                onTap: () {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Coming Soon')));
+                },
               ),
-              QuickActionButton(icon: Icons.bar_chart_rounded, label: 'Budget'),
+              QuickActionButton(
+                icon: Icons.bar_chart_rounded,
+                label: 'Budget',
+                onTap: () {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('Coming Soon')));
+                },
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -267,40 +298,33 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           AppCard(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
-              children: const [
-                TransactionItem(
-                  title: 'Starbucks',
-                  subtitle: 'Coffee & breakfast',
-                  amount: '-₹480',
-                  icon: Icons.coffee_rounded,
-                ),
-                TransactionItem(
-                  title: 'Swiggy',
-                  subtitle: 'Food delivery',
-                  amount: '-₹320',
-                  icon: Icons.delivery_dining_rounded,
-                ),
-                TransactionItem(
-                  title: 'Amazon',
-                  subtitle: 'Online purchase',
-                  amount: '-₹1,299',
-                  icon: Icons.shopping_bag_rounded,
-                ),
-                TransactionItem(
-                  title: 'Salary',
-                  subtitle: 'Monthly credit',
-                  amount: '+₹58,000',
-                  icon: Icons.account_balance_rounded,
-                ),
-                TransactionItem(
-                  title: 'Uber',
-                  subtitle: 'Ride home',
-                  amount: '-₹180',
-                  icon: Icons.directions_car_rounded,
-                ),
-              ],
-            ),
+            child: latestTransactions.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Text(
+                      'No transactions yet.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: latestTransactions.map((transaction) {
+                      return TransactionItem(
+                        title: transaction.title,
+                        subtitle: transaction.note.isEmpty
+                            ? 'No note added'
+                            : transaction.note,
+                        amount: _formatAmount(
+                          transaction.amount,
+                          transaction.transactionType,
+                        ),
+                        icon: _iconForTransactionType(
+                          transaction.transactionType,
+                        ),
+                      );
+                    }).toList(),
+                  ),
           ),
         ],
       ),
@@ -338,6 +362,19 @@ _DashboardTotals _calculateTotals(List<Transaction> transactions) {
     totalExpense: totalExpense,
     balance: totalIncome - totalExpense,
   );
+}
+
+String _formatAmount(double amount, String transactionType) {
+  final sign = transactionType.toLowerCase() == 'income' ? '+' : '-';
+  return '$sign₹${amount.toStringAsFixed(0)}';
+}
+
+IconData _iconForTransactionType(String transactionType) {
+  final normalizedType = transactionType.toLowerCase();
+  if (normalizedType == 'income') {
+    return Icons.account_balance_rounded;
+  }
+  return Icons.shopping_bag_rounded;
 }
 
 class _InfoPill extends StatelessWidget {

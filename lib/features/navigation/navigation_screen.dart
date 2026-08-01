@@ -56,21 +56,28 @@ class NavigationScreen extends ConsumerWidget {
               final isSelected = selectedIndex == index;
               return Expanded(
                 child: InkWell(
-                  onTap: () => ref.read(navigationIndexProvider.notifier).state = index,
+                  onTap: () =>
+                      ref.read(navigationIndexProvider.notifier).state = index,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         item.icon,
-                        color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         item.label,
                         style: TextStyle(
-                          color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                         ),
                       ),
                     ],
