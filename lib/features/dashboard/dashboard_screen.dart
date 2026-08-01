@@ -6,6 +6,7 @@ import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 import '../transactions/presentation/add_expense_screen.dart';
+import '../transactions/presentation/add_income_screen.dart';
 import 'widgets/quick_action_button.dart';
 import 'widgets/summary_card.dart';
 import 'widgets/transaction_item.dart';
@@ -234,9 +235,11 @@ class DashboardScreen extends ConsumerWidget {
                 icon: Icons.account_balance_wallet_rounded,
                 label: 'Add Income',
                 onTap: () {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('Coming Soon')));
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (context) => const AddIncomeScreen(),
+                    ),
+                  );
                 },
               ),
               QuickActionButton(
