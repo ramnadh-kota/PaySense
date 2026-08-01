@@ -36,6 +36,7 @@ class DashboardScreen extends ConsumerWidget {
               formattedDate: formattedDate,
               currencyFormatter: currencyFormatter,
               totals: totals,
+              transactions: transactions,
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),

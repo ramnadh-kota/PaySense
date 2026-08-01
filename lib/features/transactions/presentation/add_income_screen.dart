@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
+import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
+import 'package:paysense/shared/repositories/wallet_repository.dart';
 import 'package:uuid/uuid.dart';
 
 /// A premium, fast-entry income capture screen.
@@ -75,12 +77,28 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     );
 
     await TransactionRepository.instance.add(transaction);
+
+    final walletId = _resolveWalletId(_selectedAccount);
+    await WalletRepository.instance.increaseBalance(walletId, amount);
+    await ref.read(walletsProvider.notifier).reload();
     await ref.read(transactionsProvider.notifier).reload();
 
     if (!mounted) {
       return;
     }
     Navigator.of(context).pop();
+  }
+
+  String _resolveWalletId(String? account) {
+    switch (account) {
+      case 'Cash':
+        return 'wallet-cash';
+      case 'Checking':
+      case 'Savings':
+      case 'Credit Card':
+      default:
+        return 'wallet-hdfc-salary';
+    }
   }
 
   @override
