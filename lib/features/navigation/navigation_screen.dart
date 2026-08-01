@@ -6,6 +6,7 @@ import '../ai/ai_screen.dart';
 import '../analytics/analytics_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../profile/profile_screen.dart';
+import '../transactions/presentation/add_expense_screen.dart';
 import '../wallet/wallet_screen.dart';
 
 class NavigationScreen extends ConsumerWidget {
@@ -33,7 +34,13 @@ class NavigationScreen extends ConsumerWidget {
     return Scaffold(
       body: _pages[selectedIndex],
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (context) => const AddExpenseScreen(),
+            ),
+          );
+        },
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add_rounded),
       ),
