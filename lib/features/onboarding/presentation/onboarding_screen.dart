@@ -155,7 +155,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 8,
-                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                      backgroundColor: AppColors.primary.withValues(
+                        alpha: 0.12,
+                      ),
                       color: AppColors.primary,
                     ),
                   ),
@@ -293,7 +295,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                      child: Text(_currentStep == _stepTitles.length - 1 ? 'Finish' : 'Continue'),
+                      child: Text(
+                        _currentStep == _stepTitles.length - 1
+                            ? 'Finish'
+                            : 'Continue',
+                      ),
                     ),
                   ),
                 ],
@@ -360,16 +366,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       },
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: icon != null
-            ? Icon(icon, color: AppColors.primary)
-            : null,
+        prefixIcon: icon != null ? Icon(icon, color: AppColors.primary) : null,
         filled: true,
         fillColor: AppColors.background,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
       ),
     );
   }
