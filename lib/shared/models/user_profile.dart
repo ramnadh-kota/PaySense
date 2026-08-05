@@ -1,3 +1,8 @@
+import 'package:hive/hive.dart';
+
+part 'user_profile.g.dart';
+
+@HiveType(typeId: 0)
 class UserProfile {
   const UserProfile({
     required this.id,
@@ -8,13 +13,19 @@ class UserProfile {
     required this.targetDate,
     required this.onboardingCompleted,
   });
-
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String fullName;
+  @HiveField(2)
   final double monthlyIncome;
+  @HiveField(3)
   final double monthlyEmi;
+  @HiveField(4)
   final double savingsGoal;
+  @HiveField(5)
   final DateTime targetDate;
+  @HiveField(6)
   final bool onboardingCompleted;
 
   UserProfile copyWith({

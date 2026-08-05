@@ -33,6 +33,11 @@ dependencies:
 
   # UUID Generator
   uuid: ^4.5.1
+  
+  # Local storage (Hive)
+  hive:
+  hive_flutter:
+  path_provider:
 
 dev_dependencies:
   flutter_test:
@@ -40,6 +45,8 @@ dev_dependencies:
 
   analyzer: ^5.13.0
   flutter_lints: ^6.0.0
+  hive_generator:
+  build_runner:
 
 flutter:
   uses-material-design: true

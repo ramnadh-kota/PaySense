@@ -1,3 +1,8 @@
+import 'package:hive/hive.dart';
+
+part 'wallet.g.dart';
+
+@HiveType(typeId: 1)
 class Wallet {
   const Wallet({
     required this.id,
@@ -8,13 +13,19 @@ class Wallet {
     required this.currentBalance,
     required this.createdAt,
   });
-
+  @HiveField(0)
   final String id;
+  @HiveField(1)
   final String name;
+  @HiveField(2)
   final String bankName;
+  @HiveField(3)
   final String type;
+  @HiveField(4)
   final double openingBalance;
+  @HiveField(5)
   final double currentBalance;
+  @HiveField(6)
   final DateTime createdAt;
 
   Wallet copyWith({

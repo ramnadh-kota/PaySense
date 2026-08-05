@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
+import 'package:paysense/core/routes/app_routes.dart';
+import 'package:paysense/shared/models/user_profile.dart';
+import 'package:paysense/shared/models/wallet.dart';
+import 'package:paysense/shared/providers/user_profile_provider.dart';
+import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final PageController _pageController = PageController();
   final _formKey = GlobalKey<FormState>();
 
@@ -62,24 +68,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     }
   }
 
-  void _goToNextStep() {
-    if (_currentStep == 0 && !_validateCurrentStep()) {
-      return;
-    }
-
-    if (_currentStep == 1 && !_validateCurrentStep()) {
-      return;
-    }
-
-    if (_currentStep == 2 && !_validateCurrentStep()) {
-      return;
-    }
-
-    if (_currentStep == 3 && !_validateCurrentStep()) {
-      return;
-    }
-
-    if (_currentStep == 4 && !_validateCurrentStep()) {
+  Future<void> _goToNextStep() async {
+    if (!_validateCurrentStep()) {
       return;
     }
 
@@ -92,7 +82,47 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
       );
+      return;
     }
+
+    await _completeOnboarding();
+  }
+
+  Future<void> _completeOnboarding() async {
+    final userProfile = UserProfile(
+      id: 'profile',
+      fullName: _fullNameController.text.trim(),
+      monthlyIncome: double.tryParse(_monthlyIncomeController.text) ?? 0.0,
+      monthlyEmi: double.tryParse(_monthlyEmiController.text) ?? 0.0,
+      savingsGoal: double.tryParse(_savingsGoalController.text) ?? 0.0,
+      targetDate: _targetDate ?? DateTime.now(),
+      onboardingCompleted: true,
+    );
+
+    final wallet = Wallet(
+      id: 'wallet-${DateTime.now().microsecondsSinceEpoch}',
+      name: _walletNameController.text.trim(),
+      bankName: _bankNameController.text.trim(),
+      type: _walletTypeController.text.trim(),
+      openingBalance: double.tryParse(_openingBalanceController.text) ?? 0.0,
+      currentBalance: double.tryParse(_openingBalanceController.text) ?? 0.0,
+      createdAt: DateTime.now(),
+    );
+
+    final profileNotifier = ref.read(userProfileProvider.notifier);
+    await profileNotifier.saveProfile(userProfile);
+
+    final walletRepository = ref.read(walletRepositoryProvider);
+    await walletRepository.add(wallet);
+
+    await profileNotifier.reload();
+    await ref.read(walletsProvider.notifier).reload();
+
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.pushReplacementNamed(context, AppRoutes.navigation);
   }
 
   void _goToPreviousStep() {

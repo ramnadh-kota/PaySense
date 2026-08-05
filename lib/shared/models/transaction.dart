@@ -1,8 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
+
+part 'transaction.g.dart';
 
 /// Represents a financial transaction such as income, expense, or transfer.
+@HiveType(typeId: 2)
 @immutable
 class Transaction {
   /// Creates an immutable transaction.
@@ -19,30 +23,39 @@ class Transaction {
   });
 
   /// Unique identifier for the transaction.
+  @HiveField(0)
   final String id;
 
   /// Display title for the transaction.
+  @HiveField(1)
   final String title;
 
   /// Transaction amount.
+  @HiveField(2)
   final double amount;
 
   /// Category associated with the transaction.
+  @HiveField(3)
   final String categoryId;
 
   /// Account associated with the transaction.
+  @HiveField(4)
   final String accountId;
 
   /// Type of transaction.
+  @HiveField(5)
   final String transactionType;
 
   /// Payment method used for the transaction.
+  @HiveField(6)
   final String paymentMethod;
 
   /// Optional note describing the transaction.
+  @HiveField(7)
   final String note;
 
   /// Time when the transaction was created.
+  @HiveField(8)
   final DateTime createdAt;
 
   /// Creates a copy of this transaction with the provided values.
@@ -142,7 +155,8 @@ class Transaction {
     );
   }
 
-  static String _serializeDateTime(DateTime value) => value.toUtc().toIso8601String();
+  static String _serializeDateTime(DateTime value) =>
+      value.toUtc().toIso8601String();
 
   static DateTime _deserializeDateTime(Object? value) {
     if (value is String) {

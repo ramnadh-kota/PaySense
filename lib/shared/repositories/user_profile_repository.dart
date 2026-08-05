@@ -1,3 +1,5 @@
+import 'package:hive/hive.dart';
+
 import '../models/user_profile.dart';
 
 class UserProfileRepository {
@@ -5,22 +7,26 @@ class UserProfileRepository {
 
   static final UserProfileRepository instance = UserProfileRepository._();
 
-  UserProfile? _profile;
+  static const String _boxName = 'user_profile';
+  static const String _profileKey = 'profile';
+
+  Box<UserProfile> get _box => Hive.box<UserProfile>(_boxName);
 
   Future<UserProfile?> getProfile() async {
-    return _profile;
+    return _box.get(_profileKey);
   }
 
   Future<UserProfile> saveProfile(UserProfile profile) async {
-    _profile = profile;
+    await _box.put(_profileKey, profile);
     return profile;
   }
 
   Future<void> clearProfile() async {
-    _profile = null;
+    await _box.delete(_profileKey);
   }
 
   Future<bool> hasCompletedOnboarding() async {
-    return _profile?.onboardingCompleted ?? false;
+    final profile = _box.get(_profileKey);
+    return profile?.onboardingCompleted ?? false;
   }
 }
