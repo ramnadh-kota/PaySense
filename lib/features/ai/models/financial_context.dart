@@ -6,6 +6,11 @@ class FinancialContext {
   final double totalWalletBalance;
   final double monthlyIncomeTotal;
   final double monthlyExpenseTotal;
+  final double totalBudget;
+  final double totalBudgetSpent;
+  final double totalBudgetRemaining;
+  final double budgetUsagePercentage;
+  final String highestSpendingBudgetCategory;
   final String recentTransactionsSummary;
 
   const FinancialContext({
@@ -16,6 +21,11 @@ class FinancialContext {
     required this.totalWalletBalance,
     required this.monthlyIncomeTotal,
     required this.monthlyExpenseTotal,
+    required this.totalBudget,
+    required this.totalBudgetSpent,
+    required this.totalBudgetRemaining,
+    required this.budgetUsagePercentage,
+    required this.highestSpendingBudgetCategory,
     required this.recentTransactionsSummary,
   });
 
@@ -27,6 +37,11 @@ class FinancialContext {
     double? totalWalletBalance,
     double? monthlyIncomeTotal,
     double? monthlyExpenseTotal,
+    double? totalBudget,
+    double? totalBudgetSpent,
+    double? totalBudgetRemaining,
+    double? budgetUsagePercentage,
+    String? highestSpendingBudgetCategory,
     String? recentTransactionsSummary,
   }) {
     return FinancialContext(
@@ -37,6 +52,13 @@ class FinancialContext {
       totalWalletBalance: totalWalletBalance ?? this.totalWalletBalance,
       monthlyIncomeTotal: monthlyIncomeTotal ?? this.monthlyIncomeTotal,
       monthlyExpenseTotal: monthlyExpenseTotal ?? this.monthlyExpenseTotal,
+      totalBudget: totalBudget ?? this.totalBudget,
+      totalBudgetSpent: totalBudgetSpent ?? this.totalBudgetSpent,
+      totalBudgetRemaining: totalBudgetRemaining ?? this.totalBudgetRemaining,
+      budgetUsagePercentage:
+          budgetUsagePercentage ?? this.budgetUsagePercentage,
+      highestSpendingBudgetCategory:
+          highestSpendingBudgetCategory ?? this.highestSpendingBudgetCategory,
       recentTransactionsSummary:
           recentTransactionsSummary ?? this.recentTransactionsSummary,
     );
@@ -51,6 +73,11 @@ class FinancialContext {
       'totalWalletBalance': totalWalletBalance,
       'monthlyIncomeTotal': monthlyIncomeTotal,
       'monthlyExpenseTotal': monthlyExpenseTotal,
+      'totalBudget': totalBudget,
+      'totalBudgetSpent': totalBudgetSpent,
+      'totalBudgetRemaining': totalBudgetRemaining,
+      'budgetUsagePercentage': budgetUsagePercentage,
+      'highestSpendingBudgetCategory': highestSpendingBudgetCategory,
       'recentTransactionsSummary': recentTransactionsSummary,
     };
   }
@@ -67,6 +94,12 @@ class FinancialContext {
     dynamic rawTotalWalletBalance = map['totalWalletBalance'];
     dynamic rawMonthlyIncomeTotal = map['monthlyIncomeTotal'];
     dynamic rawMonthlyExpenseTotal = map['monthlyExpenseTotal'];
+    dynamic rawTotalBudget = map['totalBudget'];
+    dynamic rawTotalBudgetSpent = map['totalBudgetSpent'];
+    dynamic rawTotalBudgetRemaining = map['totalBudgetRemaining'];
+    dynamic rawBudgetUsagePercentage = map['budgetUsagePercentage'];
+    dynamic rawHighestSpendingBudgetCategory =
+        map['highestSpendingBudgetCategory'];
     dynamic rawRecentTransactionsSummary = map['recentTransactionsSummary'];
 
     if (rawFullName == null) {
@@ -89,6 +122,21 @@ class FinancialContext {
     }
     if (rawMonthlyExpenseTotal == null) {
       throw ArgumentError.notNull('monthlyExpenseTotal');
+    }
+    if (rawTotalBudget == null) {
+      throw ArgumentError.notNull('totalBudget');
+    }
+    if (rawTotalBudgetSpent == null) {
+      throw ArgumentError.notNull('totalBudgetSpent');
+    }
+    if (rawTotalBudgetRemaining == null) {
+      throw ArgumentError.notNull('totalBudgetRemaining');
+    }
+    if (rawBudgetUsagePercentage == null) {
+      throw ArgumentError.notNull('budgetUsagePercentage');
+    }
+    if (rawHighestSpendingBudgetCategory == null) {
+      throw ArgumentError.notNull('highestSpendingBudgetCategory');
     }
     if (rawRecentTransactionsSummary == null) {
       throw ArgumentError.notNull('recentTransactionsSummary');
@@ -122,7 +170,21 @@ class FinancialContext {
       rawMonthlyExpenseTotal,
       'monthlyExpenseTotal',
     );
-
+    final totalBudget = parseDouble(rawTotalBudget, 'totalBudget');
+    final totalBudgetSpent = parseDouble(
+      rawTotalBudgetSpent,
+      'totalBudgetSpent',
+    );
+    final totalBudgetRemaining = parseDouble(
+      rawTotalBudgetRemaining,
+      'totalBudgetRemaining',
+    );
+    final budgetUsagePercentage = parseDouble(
+      rawBudgetUsagePercentage,
+      'budgetUsagePercentage',
+    );
+    final highestSpendingBudgetCategory = rawHighestSpendingBudgetCategory
+        .toString();
     final recentTransactionsSummary = rawRecentTransactionsSummary.toString();
 
     return FinancialContext(
@@ -133,6 +195,11 @@ class FinancialContext {
       totalWalletBalance: totalWalletBalance,
       monthlyIncomeTotal: monthlyIncomeTotal,
       monthlyExpenseTotal: monthlyExpenseTotal,
+      totalBudget: totalBudget,
+      totalBudgetSpent: totalBudgetSpent,
+      totalBudgetRemaining: totalBudgetRemaining,
+      budgetUsagePercentage: budgetUsagePercentage,
+      highestSpendingBudgetCategory: highestSpendingBudgetCategory,
       recentTransactionsSummary: recentTransactionsSummary,
     );
   }

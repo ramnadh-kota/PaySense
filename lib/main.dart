@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:paysense/shared/models/budget.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/models/transaction.dart';
@@ -18,10 +19,14 @@ Future<void> main() async {
   if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(TransactionAdapter());
   }
+  if (!Hive.isAdapterRegistered(3)) {
+    Hive.registerAdapter(BudgetAdapter());
+  }
 
   await Hive.openBox<UserProfile>('user_profile');
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Transaction>('transactions');
+  await Hive.openBox<Budget>('budgets');
 
   runApp(const PaySenseApp());
 }

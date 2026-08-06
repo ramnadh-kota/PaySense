@@ -1,77 +1,157 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:hive/hive.dart';
 
-/// Represents a monthly budget for a category.
+part 'budget.g.dart';
+
+/// Represents a category budget for a specific month.
 @immutable
+@HiveType(typeId: 3)
 class Budget {
-  /// Creates an immutable budget.
   const Budget({
     required this.id,
     required this.categoryId,
-    required this.monthlyLimit,
-    required this.spent,
+    required this.categoryName,
+    required this.allocatedAmount,
+    required this.spentAmount,
+    required this.remainingAmount,
+    required this.percentageUsed,
     required this.month,
+    required this.year,
+    required this.createdAt,
   });
 
-  /// Unique identifier for the budget.
+  factory Budget.create({
+    required String id,
+    required String categoryId,
+    required String categoryName,
+    required double allocatedAmount,
+    required String month,
+    required int year,
+    required DateTime createdAt,
+  }) {
+    final spentAmount = 0.0;
+    final remainingAmount = allocatedAmount;
+    final percentageUsed = allocatedAmount > 0 ? 0.0 : 0.0;
+
+    return Budget(
+      id: id,
+      categoryId: categoryId,
+      categoryName: categoryName,
+      allocatedAmount: allocatedAmount,
+      spentAmount: spentAmount,
+      remainingAmount: remainingAmount,
+      percentageUsed: percentageUsed,
+      month: month,
+      year: year,
+      createdAt: createdAt,
+    );
+  }
+
+  @HiveField(0)
   final String id;
 
-  /// Category associated with the budget.
+  @HiveField(1)
   final String categoryId;
 
-  /// Monthly budget limit.
-  final double monthlyLimit;
+  @HiveField(2)
+  final String categoryName;
 
-  /// Amount already spent this month.
-  final double spent;
+  @HiveField(3)
+  final double allocatedAmount;
 
-  /// Budget month in YYYY-MM format.
+  @HiveField(4)
+  final double spentAmount;
+
+  @HiveField(5)
+  final double remainingAmount;
+
+  @HiveField(6)
+  final double percentageUsed;
+
+  @HiveField(7)
   final String month;
 
-  /// Creates a copy of this budget with the provided values.
+  @HiveField(8)
+  final int year;
+
+  @HiveField(9)
+  final DateTime createdAt;
+
   Budget copyWith({
     String? id,
     String? categoryId,
-    double? monthlyLimit,
-    double? spent,
+    String? categoryName,
+    double? allocatedAmount,
+    double? spentAmount,
+    double? remainingAmount,
+    double? percentageUsed,
     String? month,
+    int? year,
+    DateTime? createdAt,
   }) {
     return Budget(
       id: id ?? this.id,
       categoryId: categoryId ?? this.categoryId,
-      monthlyLimit: monthlyLimit ?? this.monthlyLimit,
-      spent: spent ?? this.spent,
+      categoryName: categoryName ?? this.categoryName,
+      allocatedAmount: allocatedAmount ?? this.allocatedAmount,
+      spentAmount: spentAmount ?? this.spentAmount,
+      remainingAmount: remainingAmount ?? this.remainingAmount,
+      percentageUsed: percentageUsed ?? this.percentageUsed,
       month: month ?? this.month,
+      year: year ?? this.year,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 
-  /// Converts the model to a Map for persistence or transport.
+  Budget updateMetrics({required double spentAmount}) {
+    final remainingAmount = (allocatedAmount - spentAmount).clamp(
+      0.0,
+      double.infinity,
+    );
+    final percentageUsed = allocatedAmount > 0
+        ? (spentAmount / allocatedAmount * 100).clamp(0.0, 100.0)
+        : 0.0;
+    return copyWith(
+      spentAmount: spentAmount,
+      remainingAmount: remainingAmount,
+      percentageUsed: percentageUsed,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'id': id,
       'categoryId': categoryId,
-      'monthlyLimit': monthlyLimit,
-      'spent': spent,
+      'categoryName': categoryName,
+      'allocatedAmount': allocatedAmount,
+      'spentAmount': spentAmount,
+      'remainingAmount': remainingAmount,
+      'percentageUsed': percentageUsed,
       'month': month,
+      'year': year,
+      'createdAt': createdAt.toIso8601String(),
     };
   }
 
-  /// Creates a model from a Map.
   factory Budget.fromMap(Map<String, dynamic> map) {
     return Budget(
       id: map['id'] as String,
       categoryId: map['categoryId'] as String,
-      monthlyLimit: (map['monthlyLimit'] as num).toDouble(),
-      spent: (map['spent'] as num).toDouble(),
+      categoryName: map['categoryName'] as String,
+      allocatedAmount: (map['allocatedAmount'] as num).toDouble(),
+      spentAmount: (map['spentAmount'] as num).toDouble(),
+      remainingAmount: (map['remainingAmount'] as num).toDouble(),
+      percentageUsed: (map['percentageUsed'] as num).toDouble(),
       month: map['month'] as String,
+      year: map['year'] as int,
+      createdAt: DateTime.parse(map['createdAt'] as String),
     );
   }
 
-  /// Converts the model to a JSON string.
   String toJson() => jsonEncode(toMap());
 
-  /// Creates a model from a JSON string.
   factory Budget.fromJson(String source) {
     final decoded = jsonDecode(source) as Map<String, dynamic>;
     return Budget.fromMap(decoded);
@@ -86,11 +166,29 @@ class Budget {
     return other is Budget &&
         other.id == id &&
         other.categoryId == categoryId &&
-        other.monthlyLimit == monthlyLimit &&
-        other.spent == spent &&
-        other.month == month;
+        other.categoryName == categoryName &&
+        other.allocatedAmount == allocatedAmount &&
+        other.spentAmount == spentAmount &&
+        other.remainingAmount == remainingAmount &&
+        other.percentageUsed == percentageUsed &&
+        other.month == month &&
+        other.year == year &&
+        other.createdAt == createdAt;
   }
 
   @override
-  int get hashCode => Object.hash(id, categoryId, monthlyLimit, spent, month);
+  int get hashCode {
+    return Object.hash(
+      id,
+      categoryId,
+      categoryName,
+      allocatedAmount,
+      spentAmount,
+      remainingAmount,
+      percentageUsed,
+      month,
+      year,
+      createdAt,
+    );
+  }
 }

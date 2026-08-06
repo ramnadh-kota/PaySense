@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../features/ai/ai_screen.dart';
 import '../../features/analytics/analytics_screen.dart';
+import '../../features/budget/presentation/screens/budget_screen.dart';
 import '../../features/navigation/navigation_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -20,6 +21,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const WalletScreen());
       case AppRoutes.analytics:
         return MaterialPageRoute(builder: (_) => const AnalyticsScreen());
+      case AppRoutes.budget:
+        return MaterialPageRoute(builder: (_) => const BudgetScreen());
       case AppRoutes.aiCoach:
         return MaterialPageRoute(builder: (_) => const AiScreen());
       case AppRoutes.profile:

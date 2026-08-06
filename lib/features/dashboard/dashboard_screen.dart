@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/providers/budget_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
+import '../../core/routes/app_routes.dart';
 import '../transactions/presentation/add_expense_screen.dart';
 import '../transactions/presentation/add_income_screen.dart';
 import 'widgets/quick_action_button.dart';
@@ -19,6 +21,8 @@ class DashboardScreen extends ConsumerWidget {
     final now = DateTime.now();
     final formattedDate = DateFormat('EEE, d MMM yyyy').format(now);
     final transactionsAsync = ref.watch(transactionsProvider);
+    final budgetsAsync = ref.watch(budgetsProvider);
+    final budgetTotals = ref.watch(budgetTotalsProvider);
     final currencyFormatter = NumberFormat.currency(
       locale: 'en_IN',
       symbol: '₹',
@@ -37,6 +41,8 @@ class DashboardScreen extends ConsumerWidget {
               currencyFormatter: currencyFormatter,
               totals: totals,
               transactions: transactions,
+              hasBudgets: (budgetsAsync.value ?? const []).isNotEmpty,
+              budgetTotals: budgetTotals,
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -64,6 +70,8 @@ class DashboardScreen extends ConsumerWidget {
     required String formattedDate,
     required NumberFormat currencyFormatter,
     required _DashboardTotals totals,
+    required bool hasBudgets,
+    required BudgetTotals budgetTotals,
     List<Transaction> transactions = const <Transaction>[],
   }) {
     final recentTransactions = transactions.toList()
@@ -210,6 +218,79 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Budget',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.budget),
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (!hasBudgets)
+            AppCard(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'No budgets yet. Create one to track spending by category.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          else
+            AppCard(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total: ${currencyFormatter.format(budgetTotals.totalBudget)}',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Spent: ${currencyFormatter.format(budgetTotals.totalSpent)} · Remaining: ${currencyFormatter.format(budgetTotals.remainingBudget)}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                        if (budgetTotals.highestSpendingCategory.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Highest spend: ${budgetTotals.highestSpendingCategory}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${budgetTotals.percentageUsed.toStringAsFixed(0)}%',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 24),
           Text(
             'Quick Actions',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -219,47 +300,34 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              QuickActionButton(
-                icon: Icons.wallet_rounded,
-                label: 'Add Expense',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const AddExpenseScreen(),
-                    ),
-                  );
-                },
+              Expanded(
+                child: QuickActionButton(
+                  icon: Icons.add_circle_outline,
+                  label: 'Add income',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddIncomeScreen()),
+                  ),
+                ),
               ),
-              QuickActionButton(
-                icon: Icons.account_balance_wallet_rounded,
-                label: 'Add Income',
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const AddIncomeScreen(),
-                    ),
-                  );
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: QuickActionButton(
+                  icon: Icons.remove_circle_outline,
+                  label: 'Add expense',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+                  ),
+                ),
               ),
-              QuickActionButton(
-                icon: Icons.swap_horiz_rounded,
-                label: 'Transfer',
-                onTap: () {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('Coming Soon')));
-                },
-              ),
-              QuickActionButton(
-                icon: Icons.bar_chart_rounded,
-                label: 'Budget',
-                onTap: () {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('Coming Soon')));
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: QuickActionButton(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Budget',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.budget),
+                ),
               ),
             ],
           ),

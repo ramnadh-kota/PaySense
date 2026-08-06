@@ -6,6 +6,7 @@ class AppRoutes {
   static const dashboard = '/dashboard';
   static const wallet = '/wallet';
   static const analytics = '/analytics';
+  static const budget = '/budget';
   static const aiCoach = '/ai-coach';
   static const profile = '/profile';
 }
