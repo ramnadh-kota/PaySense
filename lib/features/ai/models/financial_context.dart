@@ -12,6 +12,12 @@ class FinancialContext {
   final double budgetUsagePercentage;
   final String highestSpendingBudgetCategory;
   final String recentTransactionsSummary;
+  final int totalGoals;
+  final int completedGoals;
+  final double totalTargetSavings;
+  final double totalCurrentSavings;
+  final String nearestGoal;
+  final double goalCompletionPercentage;
 
   const FinancialContext({
     required this.fullName,
@@ -27,6 +33,12 @@ class FinancialContext {
     required this.budgetUsagePercentage,
     required this.highestSpendingBudgetCategory,
     required this.recentTransactionsSummary,
+    required this.totalGoals,
+    required this.completedGoals,
+    required this.totalTargetSavings,
+    required this.totalCurrentSavings,
+    required this.nearestGoal,
+    required this.goalCompletionPercentage,
   });
 
   FinancialContext copyWith({
@@ -43,6 +55,12 @@ class FinancialContext {
     double? budgetUsagePercentage,
     String? highestSpendingBudgetCategory,
     String? recentTransactionsSummary,
+    int? totalGoals,
+    int? completedGoals,
+    double? totalTargetSavings,
+    double? totalCurrentSavings,
+    String? nearestGoal,
+    double? goalCompletionPercentage,
   }) {
     return FinancialContext(
       fullName: fullName ?? this.fullName,
@@ -61,6 +79,13 @@ class FinancialContext {
           highestSpendingBudgetCategory ?? this.highestSpendingBudgetCategory,
       recentTransactionsSummary:
           recentTransactionsSummary ?? this.recentTransactionsSummary,
+      totalGoals: totalGoals ?? this.totalGoals,
+      completedGoals: completedGoals ?? this.completedGoals,
+      totalTargetSavings: totalTargetSavings ?? this.totalTargetSavings,
+      totalCurrentSavings: totalCurrentSavings ?? this.totalCurrentSavings,
+      nearestGoal: nearestGoal ?? this.nearestGoal,
+      goalCompletionPercentage:
+          goalCompletionPercentage ?? this.goalCompletionPercentage,
     );
   }
 
@@ -79,6 +104,12 @@ class FinancialContext {
       'budgetUsagePercentage': budgetUsagePercentage,
       'highestSpendingBudgetCategory': highestSpendingBudgetCategory,
       'recentTransactionsSummary': recentTransactionsSummary,
+      'totalGoals': totalGoals,
+      'completedGoals': completedGoals,
+      'totalTargetSavings': totalTargetSavings,
+      'totalCurrentSavings': totalCurrentSavings,
+      'nearestGoal': nearestGoal,
+      'goalCompletionPercentage': goalCompletionPercentage,
     };
   }
 
@@ -101,6 +132,12 @@ class FinancialContext {
     dynamic rawHighestSpendingBudgetCategory =
         map['highestSpendingBudgetCategory'];
     dynamic rawRecentTransactionsSummary = map['recentTransactionsSummary'];
+    dynamic rawTotalGoals = map['totalGoals'];
+    dynamic rawCompletedGoals = map['completedGoals'];
+    dynamic rawTotalTargetSavings = map['totalTargetSavings'];
+    dynamic rawTotalCurrentSavings = map['totalCurrentSavings'];
+    dynamic rawNearestGoal = map['nearestGoal'];
+    dynamic rawGoalCompletionPercentage = map['goalCompletionPercentage'];
 
     if (rawFullName == null) {
       throw ArgumentError.notNull('fullName');
@@ -141,6 +178,24 @@ class FinancialContext {
     if (rawRecentTransactionsSummary == null) {
       throw ArgumentError.notNull('recentTransactionsSummary');
     }
+    if (rawTotalGoals == null) {
+      throw ArgumentError.notNull('totalGoals');
+    }
+    if (rawCompletedGoals == null) {
+      throw ArgumentError.notNull('completedGoals');
+    }
+    if (rawTotalTargetSavings == null) {
+      throw ArgumentError.notNull('totalTargetSavings');
+    }
+    if (rawTotalCurrentSavings == null) {
+      throw ArgumentError.notNull('totalCurrentSavings');
+    }
+    if (rawNearestGoal == null) {
+      throw ArgumentError.notNull('nearestGoal');
+    }
+    if (rawGoalCompletionPercentage == null) {
+      throw ArgumentError.notNull('goalCompletionPercentage');
+    }
 
     String fullName = rawFullName.toString();
 
@@ -153,6 +208,17 @@ class FinancialContext {
         throw ArgumentError.value(v, fieldName, 'Cannot parse to double');
       }
       throw ArgumentError.value(v, fieldName, 'Invalid type for double');
+    }
+
+    int parseInt(dynamic v, String fieldName) {
+      if (v is int) return v;
+      if (v is double) return v.toInt();
+      if (v is String) {
+        final parsed = int.tryParse(v);
+        if (parsed != null) return parsed;
+        throw ArgumentError.value(v, fieldName, 'Cannot parse to int');
+      }
+      throw ArgumentError.value(v, fieldName, 'Invalid type for int');
     }
 
     final monthlyIncome = parseDouble(rawMonthlyIncome, 'monthlyIncome');
@@ -186,6 +252,21 @@ class FinancialContext {
     final highestSpendingBudgetCategory = rawHighestSpendingBudgetCategory
         .toString();
     final recentTransactionsSummary = rawRecentTransactionsSummary.toString();
+    final totalGoals = parseInt(rawTotalGoals, 'totalGoals');
+    final completedGoals = parseInt(rawCompletedGoals, 'completedGoals');
+    final totalTargetSavings = parseDouble(
+      rawTotalTargetSavings,
+      'totalTargetSavings',
+    );
+    final totalCurrentSavings = parseDouble(
+      rawTotalCurrentSavings,
+      'totalCurrentSavings',
+    );
+    final nearestGoal = rawNearestGoal.toString();
+    final goalCompletionPercentage = parseDouble(
+      rawGoalCompletionPercentage,
+      'goalCompletionPercentage',
+    );
 
     return FinancialContext(
       fullName: fullName,
@@ -201,6 +282,12 @@ class FinancialContext {
       budgetUsagePercentage: budgetUsagePercentage,
       highestSpendingBudgetCategory: highestSpendingBudgetCategory,
       recentTransactionsSummary: recentTransactionsSummary,
+      totalGoals: totalGoals,
+      completedGoals: completedGoals,
+      totalTargetSavings: totalTargetSavings,
+      totalCurrentSavings: totalCurrentSavings,
+      nearestGoal: nearestGoal,
+      goalCompletionPercentage: goalCompletionPercentage,
     );
   }
 }

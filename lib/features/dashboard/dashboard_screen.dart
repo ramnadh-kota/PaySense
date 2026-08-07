@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/budget_provider.dart';
+import 'package:paysense/shared/providers/goal_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 import '../../core/routes/app_routes.dart';
@@ -23,6 +24,8 @@ class DashboardScreen extends ConsumerWidget {
     final transactionsAsync = ref.watch(transactionsProvider);
     final budgetsAsync = ref.watch(budgetsProvider);
     final budgetTotals = ref.watch(budgetTotalsProvider);
+    final goalsAsync = ref.watch(goalsProvider);
+    final goalTotals = ref.watch(goalTotalsProvider);
     final currencyFormatter = NumberFormat.currency(
       locale: 'en_IN',
       symbol: '₹',
@@ -43,6 +46,8 @@ class DashboardScreen extends ConsumerWidget {
               transactions: transactions,
               hasBudgets: (budgetsAsync.value ?? const []).isNotEmpty,
               budgetTotals: budgetTotals,
+              hasGoals: (goalsAsync.value ?? const []).isNotEmpty,
+              goalTotals: goalTotals,
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -72,6 +77,8 @@ class DashboardScreen extends ConsumerWidget {
     required _DashboardTotals totals,
     required bool hasBudgets,
     required BudgetTotals budgetTotals,
+    required bool hasGoals,
+    required GoalTotals goalTotals,
     List<Transaction> transactions = const <Transaction>[],
   }) {
     final recentTransactions = transactions.toList()
@@ -282,6 +289,83 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   Text(
                     '${budgetTotals.percentageUsed.toStringAsFixed(0)}%',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Goals',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.goals),
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (!hasGoals)
+            AppCard(
+              padding: const EdgeInsets.all(20),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.goals),
+              child: Text(
+                'No savings goals yet. Create one to start tracking progress.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          else
+            AppCard(
+              padding: const EdgeInsets.all(20),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.goals),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${goalTotals.totalGoals} goal${goalTotals.totalGoals == 1 ? '' : 's'} · Target: ${currencyFormatter.format(goalTotals.totalTarget)}',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Saved: ${currencyFormatter.format(goalTotals.totalSaved)} · Remaining: ${currencyFormatter.format(goalTotals.totalRemaining)}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                        if (goalTotals.closestGoal.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Closest goal: ${goalTotals.closestGoal}',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Text(
+                    goalTotals.totalTarget > 0
+                        ? '${(goalTotals.totalSaved / goalTotals.totalTarget * 100).clamp(0.0, 100.0).toStringAsFixed(0)}%'
+                        : '0%',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,

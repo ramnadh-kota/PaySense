@@ -1,5 +1,6 @@
 import 'package:paysense/features/ai/models/financial_context.dart';
 import 'package:paysense/shared/repositories/budget_repository.dart';
+import 'package:paysense/shared/repositories/goal_repository.dart';
 import 'package:paysense/shared/repositories/user_profile_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
@@ -14,6 +15,7 @@ class FinancialContextBuilder {
     final wallets = await WalletRepository.instance.getAll();
     final transactions = await TransactionRepository.instance.getAll();
     final budgets = await BudgetRepository.instance.getAll();
+    final goals = await GoalRepository.instance.getAll();
 
     final totalWalletBalance = wallets.fold<double>(
       0.0,
@@ -70,6 +72,25 @@ class FinancialContextBuilder {
               .reduce((a, b) => a.spentAmount >= b.spentAmount ? a : b)
               .categoryName;
 
+    final totalGoals = goals.length;
+    final completedGoals = goals.where((g) => g.isCompleted).length;
+    final totalTargetSavings = goals.fold<double>(
+      0.0,
+      (sum, g) => sum + g.targetAmount,
+    );
+    final totalCurrentSavings = goals.fold<double>(
+      0.0,
+      (sum, g) => sum + g.currentAmount,
+    );
+    final goalCompletionPercentage = totalTargetSavings > 0
+        ? (totalCurrentSavings / totalTargetSavings * 100)
+        : 0.0;
+    final incompleteGoals = goals.where((g) => !g.isCompleted).toList()
+      ..sort((a, b) => a.targetDate.compareTo(b.targetDate));
+    final nearestGoal = incompleteGoals.isEmpty
+        ? ''
+        : incompleteGoals.first.title;
+
     return FinancialContext(
       fullName: profile?.fullName ?? '',
       monthlyIncome: profile?.monthlyIncome ?? 0.0,
@@ -84,6 +105,12 @@ class FinancialContextBuilder {
       budgetUsagePercentage: budgetUsagePercentage,
       highestSpendingBudgetCategory: highestSpendingBudgetCategory,
       recentTransactionsSummary: recentTransactionsSummary,
+      totalGoals: totalGoals,
+      completedGoals: completedGoals,
+      totalTargetSavings: totalTargetSavings,
+      totalCurrentSavings: totalCurrentSavings,
+      nearestGoal: nearestGoal,
+      goalCompletionPercentage: goalCompletionPercentage,
     );
   }
 }
