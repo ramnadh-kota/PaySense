@@ -1,4 +1,5 @@
 import 'package:paysense/features/ai/models/financial_context.dart';
+import 'package:paysense/shared/repositories/bill_repository.dart';
 import 'package:paysense/shared/repositories/budget_repository.dart';
 import 'package:paysense/shared/repositories/goal_repository.dart';
 import 'package:paysense/shared/repositories/recurring_transaction_repository.dart';
@@ -20,6 +21,7 @@ class FinancialContextBuilder {
     final recurringTransactions = await RecurringTransactionRepository
         .instance
         .getAll();
+    final bills = await BillRepository.instance.getAll();
 
     final totalWalletBalance = wallets.fold<double>(
       0.0,
@@ -123,6 +125,21 @@ class FinancialContextBuilder {
         ? ''
         : '${nextUpcoming.nextDueDate.day}/${nextUpcoming.nextDueDate.month}/${nextUpcoming.nextDueDate.year}';
 
+    final unpaidBillsList = bills.where((b) => !b.isPaid).toList()
+      ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+    final overdueBillsCount = unpaidBillsList
+        .where((b) => b.isOverdue(now))
+        .length;
+    final totalUnpaidBillsAmount = unpaidBillsList.fold<double>(
+      0.0,
+      (sum, b) => sum + b.amount,
+    );
+    final nextBill = unpaidBillsList.isEmpty ? null : unpaidBillsList.first;
+    final nextBillTitle = nextBill?.title ?? '';
+    final nextBillDueDate = nextBill == null
+        ? ''
+        : '${nextBill.dueDate.day}/${nextBill.dueDate.month}/${nextBill.dueDate.year}';
+
     return FinancialContext(
       fullName: profile?.fullName ?? '',
       monthlyIncome: profile?.monthlyIncome ?? 0.0,
@@ -149,6 +166,12 @@ class FinancialContextBuilder {
       monthlyRecurringExpense: monthlyRecurringExpense,
       nextUpcomingPayment: nextUpcomingPayment,
       nextUpcomingPaymentDate: nextUpcomingPaymentDate,
+      totalBills: bills.length,
+      unpaidBills: unpaidBillsList.length,
+      overdueBills: overdueBillsCount,
+      totalUnpaidBillsAmount: totalUnpaidBillsAmount,
+      nextBillTitle: nextBillTitle,
+      nextBillDueDate: nextBillDueDate,
     );
   }
 

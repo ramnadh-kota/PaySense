@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
+import 'package:paysense/shared/models/bill.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/providers/bill_provider.dart';
 import 'package:paysense/shared/providers/budget_provider.dart';
 import 'package:paysense/shared/providers/goal_provider.dart';
 import 'package:paysense/shared/providers/recurring_transaction_provider.dart';
@@ -30,6 +32,7 @@ class DashboardScreen extends ConsumerWidget {
     final goalsAsync = ref.watch(goalsProvider);
     final goalTotals = ref.watch(goalTotalsProvider);
     final upcomingPayments = ref.watch(upcomingPaymentsProvider);
+    final upcomingBills = ref.watch(upcomingBillsProvider);
     final profileAsync = ref.watch(userProfileProvider);
     final greeting = _greetingFor(now, profileAsync.value?.fullName ?? '');
     final currencyFormatter = NumberFormat.currency(
@@ -56,6 +59,7 @@ class DashboardScreen extends ConsumerWidget {
               hasGoals: (goalsAsync.value ?? const []).isNotEmpty,
               goalTotals: goalTotals,
               upcomingPayments: upcomingPayments,
+              upcomingBills: upcomingBills,
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -89,6 +93,7 @@ class DashboardScreen extends ConsumerWidget {
     required bool hasGoals,
     required GoalTotals goalTotals,
     required List<RecurringTransaction> upcomingPayments,
+    required List<Bill> upcomingBills,
     List<Transaction> transactions = const <Transaction>[],
   }) {
     final recentTransactions = transactions.toList()
@@ -474,6 +479,103 @@ class DashboardScreen extends ConsumerWidget {
                                 color: isIncome
                                     ? AppColors.success
                                     : AppColors.danger,
+                              ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Upcoming Bills',
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pushNamed(AppRoutes.bills),
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (upcomingBills.isEmpty)
+            AppCard(
+              padding: const EdgeInsets.all(20),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.bills),
+              child: Text(
+                'No bills due or overdue right now.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          else
+            AppCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.bills),
+              child: Column(
+                children: upcomingBills.take(3).map((bill) {
+                  final isOverdue = bill.isOverdue(DateTime.now());
+                  final statusColor = isOverdue
+                      ? AppColors.danger
+                      : AppColors.warning;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isOverdue
+                                ? Icons.warning_amber_rounded
+                                : Icons.receipt_long_rounded,
+                            color: statusColor,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                bill.title,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                              ),
+                              Text(
+                                isOverdue
+                                    ? 'Overdue since ${_formatDate(bill.dueDate)}'
+                                    : 'Due ${_formatDate(bill.dueDate)}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: statusColor),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '₹${bill.amount.toStringAsFixed(0)}',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
                               ),
                         ),
                       ],

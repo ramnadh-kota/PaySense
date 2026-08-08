@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:paysense/features/ai/services/financial_context_builder.dart';
+import 'package:paysense/shared/models/bill.dart';
 import 'package:paysense/shared/models/budget.dart';
 import 'package:paysense/shared/models/goal.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
@@ -35,6 +36,9 @@ Future<void> _initHive(Directory dir) async {
   if (!Hive.isAdapterRegistered(5)) {
     Hive.registerAdapter(RecurringTransactionAdapter());
   }
+  if (!Hive.isAdapterRegistered(6)) {
+    Hive.registerAdapter(BillAdapter());
+  }
 
   await Hive.openBox<UserProfile>('user_profile');
   await Hive.openBox<Wallet>('wallets');
@@ -42,6 +46,7 @@ Future<void> _initHive(Directory dir) async {
   await Hive.openBox<Budget>('budgets');
   await Hive.openBox<Goal>('goals');
   await Hive.openBox<RecurringTransaction>('recurring_transactions');
+  await Hive.openBox<Bill>('bills');
 }
 
 void main() {

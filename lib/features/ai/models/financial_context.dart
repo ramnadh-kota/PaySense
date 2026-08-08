@@ -24,6 +24,12 @@ class FinancialContext {
   final double monthlyRecurringExpense;
   final String nextUpcomingPayment;
   final String nextUpcomingPaymentDate;
+  final int totalBills;
+  final int unpaidBills;
+  final int overdueBills;
+  final double totalUnpaidBillsAmount;
+  final String nextBillTitle;
+  final String nextBillDueDate;
 
   const FinancialContext({
     required this.fullName,
@@ -51,6 +57,12 @@ class FinancialContext {
     required this.monthlyRecurringExpense,
     required this.nextUpcomingPayment,
     required this.nextUpcomingPaymentDate,
+    required this.totalBills,
+    required this.unpaidBills,
+    required this.overdueBills,
+    required this.totalUnpaidBillsAmount,
+    required this.nextBillTitle,
+    required this.nextBillDueDate,
   });
 
   FinancialContext copyWith({
@@ -79,6 +91,12 @@ class FinancialContext {
     double? monthlyRecurringExpense,
     String? nextUpcomingPayment,
     String? nextUpcomingPaymentDate,
+    int? totalBills,
+    int? unpaidBills,
+    int? overdueBills,
+    double? totalUnpaidBillsAmount,
+    String? nextBillTitle,
+    String? nextBillDueDate,
   }) {
     return FinancialContext(
       fullName: fullName ?? this.fullName,
@@ -115,6 +133,13 @@ class FinancialContext {
       nextUpcomingPayment: nextUpcomingPayment ?? this.nextUpcomingPayment,
       nextUpcomingPaymentDate:
           nextUpcomingPaymentDate ?? this.nextUpcomingPaymentDate,
+      totalBills: totalBills ?? this.totalBills,
+      unpaidBills: unpaidBills ?? this.unpaidBills,
+      overdueBills: overdueBills ?? this.overdueBills,
+      totalUnpaidBillsAmount:
+          totalUnpaidBillsAmount ?? this.totalUnpaidBillsAmount,
+      nextBillTitle: nextBillTitle ?? this.nextBillTitle,
+      nextBillDueDate: nextBillDueDate ?? this.nextBillDueDate,
     );
   }
 
@@ -145,6 +170,12 @@ class FinancialContext {
       'monthlyRecurringExpense': monthlyRecurringExpense,
       'nextUpcomingPayment': nextUpcomingPayment,
       'nextUpcomingPaymentDate': nextUpcomingPaymentDate,
+      'totalBills': totalBills,
+      'unpaidBills': unpaidBills,
+      'overdueBills': overdueBills,
+      'totalUnpaidBillsAmount': totalUnpaidBillsAmount,
+      'nextBillTitle': nextBillTitle,
+      'nextBillDueDate': nextBillDueDate,
     };
   }
 
@@ -180,6 +211,12 @@ class FinancialContext {
     dynamic rawMonthlyRecurringExpense = map['monthlyRecurringExpense'];
     dynamic rawNextUpcomingPayment = map['nextUpcomingPayment'];
     dynamic rawNextUpcomingPaymentDate = map['nextUpcomingPaymentDate'];
+    dynamic rawTotalBills = map['totalBills'];
+    dynamic rawUnpaidBills = map['unpaidBills'];
+    dynamic rawOverdueBills = map['overdueBills'];
+    dynamic rawTotalUnpaidBillsAmount = map['totalUnpaidBillsAmount'];
+    dynamic rawNextBillTitle = map['nextBillTitle'];
+    dynamic rawNextBillDueDate = map['nextBillDueDate'];
 
     if (rawFullName == null) {
       throw ArgumentError.notNull('fullName');
@@ -255,6 +292,24 @@ class FinancialContext {
     }
     if (rawNextUpcomingPaymentDate == null) {
       throw ArgumentError.notNull('nextUpcomingPaymentDate');
+    }
+    if (rawTotalBills == null) {
+      throw ArgumentError.notNull('totalBills');
+    }
+    if (rawUnpaidBills == null) {
+      throw ArgumentError.notNull('unpaidBills');
+    }
+    if (rawOverdueBills == null) {
+      throw ArgumentError.notNull('overdueBills');
+    }
+    if (rawTotalUnpaidBillsAmount == null) {
+      throw ArgumentError.notNull('totalUnpaidBillsAmount');
+    }
+    if (rawNextBillTitle == null) {
+      throw ArgumentError.notNull('nextBillTitle');
+    }
+    if (rawNextBillDueDate == null) {
+      throw ArgumentError.notNull('nextBillDueDate');
     }
 
     String fullName = rawFullName.toString();
@@ -345,6 +400,15 @@ class FinancialContext {
     );
     final nextUpcomingPayment = rawNextUpcomingPayment.toString();
     final nextUpcomingPaymentDate = rawNextUpcomingPaymentDate.toString();
+    final totalBills = parseInt(rawTotalBills, 'totalBills');
+    final unpaidBills = parseInt(rawUnpaidBills, 'unpaidBills');
+    final overdueBills = parseInt(rawOverdueBills, 'overdueBills');
+    final totalUnpaidBillsAmount = parseDouble(
+      rawTotalUnpaidBillsAmount,
+      'totalUnpaidBillsAmount',
+    );
+    final nextBillTitle = rawNextBillTitle.toString();
+    final nextBillDueDate = rawNextBillDueDate.toString();
 
     return FinancialContext(
       fullName: fullName,
@@ -372,6 +436,12 @@ class FinancialContext {
       monthlyRecurringExpense: monthlyRecurringExpense,
       nextUpcomingPayment: nextUpcomingPayment,
       nextUpcomingPaymentDate: nextUpcomingPaymentDate,
+      totalBills: totalBills,
+      unpaidBills: unpaidBills,
+      overdueBills: overdueBills,
+      totalUnpaidBillsAmount: totalUnpaidBillsAmount,
+      nextBillTitle: nextBillTitle,
+      nextBillDueDate: nextBillDueDate,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../features/ai/ai_screen.dart';
 import '../../features/analytics/analytics_screen.dart';
+import '../../features/bills/presentation/screens/bills_screen.dart';
 import '../../features/budget/presentation/screens/budget_screen.dart';
 import '../../features/goals/presentation/screens/goals_screen.dart';
 import '../../features/navigation/navigation_screen.dart';
@@ -35,6 +36,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const GoalsScreen());
       case AppRoutes.recurring:
         return MaterialPageRoute(builder: (_) => const RecurringScreen());
+      case AppRoutes.bills:
+        return MaterialPageRoute(builder: (_) => const BillsScreen());
       case AppRoutes.aiCoach:
         return MaterialPageRoute(builder: (_) => const AiScreen());
       case AppRoutes.profile:
