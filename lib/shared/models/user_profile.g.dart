@@ -19,32 +19,53 @@ class UserProfileAdapter extends TypeAdapter<UserProfile> {
     return UserProfile(
       id: fields[0] as String,
       fullName: fields[1] as String,
-      monthlyIncome: fields[2] as double,
-      monthlyEmi: fields[3] as double,
-      savingsGoal: fields[4] as double,
-      targetDate: fields[5] as DateTime,
-      onboardingCompleted: fields[6] as bool,
+      email: fields[2] as String,
+      phone: fields[3] as String,
+      dateOfBirth: fields[4] as DateTime?,
+      gender: fields[5] as String,
+      occupation: fields[6] as String,
+      monthlyIncome: fields[7] as double,
+      currency: fields[8] as String,
+      country: fields[9] as String,
+      monthlyEmi: fields[10] as double,
+      savingsGoal: fields[11] as double,
+      createdAt: fields[12] as DateTime,
+      updatedAt: fields[13] as DateTime,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserProfile obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.fullName)
       ..writeByte(2)
-      ..write(obj.monthlyIncome)
+      ..write(obj.email)
       ..writeByte(3)
-      ..write(obj.monthlyEmi)
+      ..write(obj.phone)
       ..writeByte(4)
-      ..write(obj.savingsGoal)
+      ..write(obj.dateOfBirth)
       ..writeByte(5)
-      ..write(obj.targetDate)
+      ..write(obj.gender)
       ..writeByte(6)
-      ..write(obj.onboardingCompleted);
+      ..write(obj.occupation)
+      ..writeByte(7)
+      ..write(obj.monthlyIncome)
+      ..writeByte(8)
+      ..write(obj.currency)
+      ..writeByte(9)
+      ..write(obj.country)
+      ..writeByte(10)
+      ..write(obj.monthlyEmi)
+      ..writeByte(11)
+      ..write(obj.savingsGoal)
+      ..writeByte(12)
+      ..write(obj.createdAt)
+      ..writeByte(13)
+      ..write(obj.updatedAt);
   }
 
   @override

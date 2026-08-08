@@ -18,6 +18,12 @@ class FinancialContext {
   final double totalCurrentSavings;
   final String nearestGoal;
   final double goalCompletionPercentage;
+  final int totalRecurringTransactions;
+  final int activeRecurringTransactions;
+  final double monthlyRecurringIncome;
+  final double monthlyRecurringExpense;
+  final String nextUpcomingPayment;
+  final String nextUpcomingPaymentDate;
 
   const FinancialContext({
     required this.fullName,
@@ -39,6 +45,12 @@ class FinancialContext {
     required this.totalCurrentSavings,
     required this.nearestGoal,
     required this.goalCompletionPercentage,
+    required this.totalRecurringTransactions,
+    required this.activeRecurringTransactions,
+    required this.monthlyRecurringIncome,
+    required this.monthlyRecurringExpense,
+    required this.nextUpcomingPayment,
+    required this.nextUpcomingPaymentDate,
   });
 
   FinancialContext copyWith({
@@ -61,6 +73,12 @@ class FinancialContext {
     double? totalCurrentSavings,
     String? nearestGoal,
     double? goalCompletionPercentage,
+    int? totalRecurringTransactions,
+    int? activeRecurringTransactions,
+    double? monthlyRecurringIncome,
+    double? monthlyRecurringExpense,
+    String? nextUpcomingPayment,
+    String? nextUpcomingPaymentDate,
   }) {
     return FinancialContext(
       fullName: fullName ?? this.fullName,
@@ -86,6 +104,17 @@ class FinancialContext {
       nearestGoal: nearestGoal ?? this.nearestGoal,
       goalCompletionPercentage:
           goalCompletionPercentage ?? this.goalCompletionPercentage,
+      totalRecurringTransactions:
+          totalRecurringTransactions ?? this.totalRecurringTransactions,
+      activeRecurringTransactions:
+          activeRecurringTransactions ?? this.activeRecurringTransactions,
+      monthlyRecurringIncome:
+          monthlyRecurringIncome ?? this.monthlyRecurringIncome,
+      monthlyRecurringExpense:
+          monthlyRecurringExpense ?? this.monthlyRecurringExpense,
+      nextUpcomingPayment: nextUpcomingPayment ?? this.nextUpcomingPayment,
+      nextUpcomingPaymentDate:
+          nextUpcomingPaymentDate ?? this.nextUpcomingPaymentDate,
     );
   }
 
@@ -110,6 +139,12 @@ class FinancialContext {
       'totalCurrentSavings': totalCurrentSavings,
       'nearestGoal': nearestGoal,
       'goalCompletionPercentage': goalCompletionPercentage,
+      'totalRecurringTransactions': totalRecurringTransactions,
+      'activeRecurringTransactions': activeRecurringTransactions,
+      'monthlyRecurringIncome': monthlyRecurringIncome,
+      'monthlyRecurringExpense': monthlyRecurringExpense,
+      'nextUpcomingPayment': nextUpcomingPayment,
+      'nextUpcomingPaymentDate': nextUpcomingPaymentDate,
     };
   }
 
@@ -138,6 +173,13 @@ class FinancialContext {
     dynamic rawTotalCurrentSavings = map['totalCurrentSavings'];
     dynamic rawNearestGoal = map['nearestGoal'];
     dynamic rawGoalCompletionPercentage = map['goalCompletionPercentage'];
+    dynamic rawTotalRecurringTransactions = map['totalRecurringTransactions'];
+    dynamic rawActiveRecurringTransactions =
+        map['activeRecurringTransactions'];
+    dynamic rawMonthlyRecurringIncome = map['monthlyRecurringIncome'];
+    dynamic rawMonthlyRecurringExpense = map['monthlyRecurringExpense'];
+    dynamic rawNextUpcomingPayment = map['nextUpcomingPayment'];
+    dynamic rawNextUpcomingPaymentDate = map['nextUpcomingPaymentDate'];
 
     if (rawFullName == null) {
       throw ArgumentError.notNull('fullName');
@@ -195,6 +237,24 @@ class FinancialContext {
     }
     if (rawGoalCompletionPercentage == null) {
       throw ArgumentError.notNull('goalCompletionPercentage');
+    }
+    if (rawTotalRecurringTransactions == null) {
+      throw ArgumentError.notNull('totalRecurringTransactions');
+    }
+    if (rawActiveRecurringTransactions == null) {
+      throw ArgumentError.notNull('activeRecurringTransactions');
+    }
+    if (rawMonthlyRecurringIncome == null) {
+      throw ArgumentError.notNull('monthlyRecurringIncome');
+    }
+    if (rawMonthlyRecurringExpense == null) {
+      throw ArgumentError.notNull('monthlyRecurringExpense');
+    }
+    if (rawNextUpcomingPayment == null) {
+      throw ArgumentError.notNull('nextUpcomingPayment');
+    }
+    if (rawNextUpcomingPaymentDate == null) {
+      throw ArgumentError.notNull('nextUpcomingPaymentDate');
     }
 
     String fullName = rawFullName.toString();
@@ -267,6 +327,24 @@ class FinancialContext {
       rawGoalCompletionPercentage,
       'goalCompletionPercentage',
     );
+    final totalRecurringTransactions = parseInt(
+      rawTotalRecurringTransactions,
+      'totalRecurringTransactions',
+    );
+    final activeRecurringTransactions = parseInt(
+      rawActiveRecurringTransactions,
+      'activeRecurringTransactions',
+    );
+    final monthlyRecurringIncome = parseDouble(
+      rawMonthlyRecurringIncome,
+      'monthlyRecurringIncome',
+    );
+    final monthlyRecurringExpense = parseDouble(
+      rawMonthlyRecurringExpense,
+      'monthlyRecurringExpense',
+    );
+    final nextUpcomingPayment = rawNextUpcomingPayment.toString();
+    final nextUpcomingPaymentDate = rawNextUpcomingPaymentDate.toString();
 
     return FinancialContext(
       fullName: fullName,
@@ -288,6 +366,12 @@ class FinancialContext {
       totalCurrentSavings: totalCurrentSavings,
       nearestGoal: nearestGoal,
       goalCompletionPercentage: goalCompletionPercentage,
+      totalRecurringTransactions: totalRecurringTransactions,
+      activeRecurringTransactions: activeRecurringTransactions,
+      monthlyRecurringIncome: monthlyRecurringIncome,
+      monthlyRecurringExpense: monthlyRecurringExpense,
+      nextUpcomingPayment: nextUpcomingPayment,
+      nextUpcomingPaymentDate: nextUpcomingPaymentDate,
     );
   }
 }

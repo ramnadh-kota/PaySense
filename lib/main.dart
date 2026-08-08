@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:paysense/core/services/notification_service.dart';
 import 'package:paysense/shared/models/budget.dart';
 import 'package:paysense/shared/models/goal.dart';
+import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/models/transaction.dart';
@@ -26,12 +28,19 @@ Future<void> main() async {
   if (!Hive.isAdapterRegistered(4)) {
     Hive.registerAdapter(GoalAdapter());
   }
+  if (!Hive.isAdapterRegistered(5)) {
+    Hive.registerAdapter(RecurringTransactionAdapter());
+  }
 
   await Hive.openBox<UserProfile>('user_profile');
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Transaction>('transactions');
   await Hive.openBox<Budget>('budgets');
   await Hive.openBox<Goal>('goals');
+  await Hive.openBox<RecurringTransaction>('recurring_transactions');
+  await Hive.openBox('app_settings');
+
+  await NotificationService.instance.initialize();
 
   runApp(const PaySenseApp());
 }

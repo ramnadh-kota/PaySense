@@ -24,9 +24,4 @@ class UserProfileRepository {
   Future<void> clearProfile() async {
     await _box.delete(_profileKey);
   }
-
-  Future<bool> hasCompletedOnboarding() async {
-    final profile = _box.get(_profileKey);
-    return profile?.onboardingCompleted ?? false;
-  }
 }

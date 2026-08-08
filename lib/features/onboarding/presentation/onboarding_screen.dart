@@ -1,439 +1,191 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/routes/app_routes.dart';
-import 'package:paysense/shared/models/user_profile.dart';
-import 'package:paysense/shared/models/wallet.dart';
-import 'package:paysense/shared/providers/user_profile_provider.dart';
-import 'package:paysense/shared/providers/wallet_provider.dart';
-import 'package:paysense/shared/widgets/app_card.dart';
 
-class OnboardingScreen extends ConsumerStatefulWidget {
+class _OnboardingPageData {
+  const _OnboardingPageData({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+}
+
+const List<_OnboardingPageData> _pages = <_OnboardingPageData>[
+  _OnboardingPageData(
+    icon: Icons.account_balance_wallet_rounded,
+    title: 'Welcome to PaySense',
+    description:
+        'Your AI-powered personal finance companion. Let\'s get your money organized in minutes.',
+  ),
+  _OnboardingPageData(
+    icon: Icons.receipt_long_rounded,
+    title: 'Track every rupee',
+    description:
+        'Log income and expenses in seconds and see exactly where your money goes.',
+  ),
+  _OnboardingPageData(
+    icon: Icons.savings_rounded,
+    title: 'Budgets, goals & reminders',
+    description:
+        'Set category budgets and savings goals, and automate recurring bills with smart reminders.',
+  ),
+  _OnboardingPageData(
+    icon: Icons.auto_awesome_rounded,
+    title: 'Meet your AI money coach',
+    description:
+        'Ask questions, get personalized insights, and make smarter financial decisions every day.',
+  ),
+];
+
+/// A four-page introduction to PaySense shown on first launch, before the
+/// user sets up their profile.
+class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
+  State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
-  final _formKey = GlobalKey<FormState>();
+  int _currentPage = 0;
 
-  int _currentStep = 0;
-  final _fullNameController = TextEditingController();
-  final _monthlyIncomeController = TextEditingController();
-  final _monthlyEmiController = TextEditingController();
-  final _savingsGoalController = TextEditingController();
-  final _walletNameController = TextEditingController();
-  final _bankNameController = TextEditingController();
-  final _walletTypeController = TextEditingController();
-  final _openingBalanceController = TextEditingController();
-  DateTime? _targetDate;
-
-  final List<String> _stepTitles = const [
-    'Personal Info',
-    'Income',
-    'EMI',
-    'Goals',
-    'First Wallet',
-  ];
+  bool get _isLastPage => _currentPage == _pages.length - 1;
 
   @override
   void dispose() {
     _pageController.dispose();
-    _fullNameController.dispose();
-    _monthlyIncomeController.dispose();
-    _monthlyEmiController.dispose();
-    _savingsGoalController.dispose();
-    _walletNameController.dispose();
-    _bankNameController.dispose();
-    _walletTypeController.dispose();
-    _openingBalanceController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickDate(BuildContext context) async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _targetDate ?? now,
-      firstDate: now,
-      lastDate: DateTime(now.year + 5),
-    );
-
-    if (picked != null) {
-      setState(() {
-        _targetDate = picked;
-      });
-    }
-  }
-
-  Future<void> _goToNextStep() async {
-    if (!_validateCurrentStep()) {
+  void _goToNextPage() {
+    if (_isLastPage) {
+      _finishOnboarding();
       return;
     }
-
-    if (_currentStep < _stepTitles.length - 1) {
-      setState(() {
-        _currentStep += 1;
-      });
-      _pageController.animateToPage(
-        _currentStep,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-      );
-      return;
-    }
-
-    await _completeOnboarding();
-  }
-
-  Future<void> _completeOnboarding() async {
-    final userProfile = UserProfile(
-      id: 'profile',
-      fullName: _fullNameController.text.trim(),
-      monthlyIncome: double.tryParse(_monthlyIncomeController.text) ?? 0.0,
-      monthlyEmi: double.tryParse(_monthlyEmiController.text) ?? 0.0,
-      savingsGoal: double.tryParse(_savingsGoalController.text) ?? 0.0,
-      targetDate: _targetDate ?? DateTime.now(),
-      onboardingCompleted: true,
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
     );
-
-    final wallet = Wallet(
-      id: 'wallet-${DateTime.now().microsecondsSinceEpoch}',
-      name: _walletNameController.text.trim(),
-      bankName: _bankNameController.text.trim(),
-      type: _walletTypeController.text.trim(),
-      openingBalance: double.tryParse(_openingBalanceController.text) ?? 0.0,
-      currentBalance: double.tryParse(_openingBalanceController.text) ?? 0.0,
-      createdAt: DateTime.now(),
-    );
-
-    final profileNotifier = ref.read(userProfileProvider.notifier);
-    await profileNotifier.saveProfile(userProfile);
-
-    final walletRepository = ref.read(walletRepositoryProvider);
-    await walletRepository.add(wallet);
-
-    await profileNotifier.reload();
-    await ref.read(walletsProvider.notifier).reload();
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.pushReplacementNamed(context, AppRoutes.navigation);
   }
 
-  void _goToPreviousStep() {
-    if (_currentStep > 0) {
-      setState(() {
-        _currentStep -= 1;
-      });
-      _pageController.animateToPage(
-        _currentStep,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  bool _validateCurrentStep() {
-    final currentForm = _formKey.currentState;
-    if (currentForm == null) {
-      return false;
-    }
-
-    if (!currentForm.validate()) {
-      return false;
-    }
-
-    return true;
+  void _finishOnboarding() {
+    Navigator.of(context).pushReplacementNamed(AppRoutes.profileSetup);
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = (_currentStep + 1) / _stepTitles.length;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome to PaySense',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Set up your financial profile in a few taps.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: AppColors.primary.withValues(
-                        alpha: 0.12,
+            Align(
+              alignment: Alignment.topRight,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                child: Visibility(
+                  visible: !_isLastPage,
+                  maintainSize: true,
+                  maintainAnimation: true,
+                  maintainState: true,
+                  child: TextButton(
+                    onPressed: _finishOnboarding,
+                    child: Text(
+                      'Skip',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w600,
                       ),
-                      color: AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Step ${_currentStep + 1} of ${_stepTitles.length}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
             Expanded(
-              child: PageView(
+              child: PageView.builder(
                 controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildStepContent(
-                    context,
-                    title: _stepTitles[0],
-                    child: _buildTextField(
-                      controller: _fullNameController,
-                      label: 'Full Name',
-                      validator: 'Please enter your full name',
-                      icon: Icons.person_outline_rounded,
-                    ),
-                  ),
-                  _buildStepContent(
-                    context,
-                    title: _stepTitles[1],
-                    child: _buildTextField(
-                      controller: _monthlyIncomeController,
-                      label: 'Monthly Income',
-                      keyboardType: TextInputType.number,
-                      validator: 'Please enter your monthly income',
-                      icon: Icons.account_balance_wallet_rounded,
-                    ),
-                  ),
-                  _buildStepContent(
-                    context,
-                    title: _stepTitles[2],
-                    child: _buildTextField(
-                      controller: _monthlyEmiController,
-                      label: 'Monthly EMI',
-                      keyboardType: TextInputType.number,
-                      validator: 'Please enter your monthly EMI',
-                      icon: Icons.credit_card_rounded,
-                    ),
-                  ),
-                  _buildStepContent(
-                    context,
-                    title: _stepTitles[3],
+                itemCount: _pages.length,
+                onPageChanged: (index) => setState(() => _currentPage = index),
+                itemBuilder: (context, index) {
+                  final page = _pages[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildTextField(
-                          controller: _savingsGoalController,
-                          label: 'Savings Goal',
-                          keyboardType: TextInputType.number,
-                          validator: 'Please enter your savings goal',
-                          icon: Icons.savings_rounded,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildDateSelector(context),
-                      ],
-                    ),
-                  ),
-                  _buildStepContent(
-                    context,
-                    title: _stepTitles[4],
-                    child: Column(
-                      children: [
-                        _buildTextField(
-                          controller: _walletNameController,
-                          label: 'Wallet Name',
-                          validator: 'Please enter a wallet name',
-                          icon: Icons.wallet_rounded,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          controller: _bankNameController,
-                          label: 'Bank Name',
-                          validator: 'Please enter a bank name',
-                          icon: Icons.account_balance_rounded,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          controller: _walletTypeController,
-                          label: 'Wallet Type',
-                          validator: 'Please enter a wallet type',
-                          icon: Icons.category_rounded,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildTextField(
-                          controller: _openingBalanceController,
-                          label: 'Opening Balance',
-                          keyboardType: TextInputType.number,
-                          validator: 'Please enter an opening balance',
-                          icon: Icons.attach_money_rounded,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              child: Row(
-                children: [
-                  if (_currentStep > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _goToPreviousStep,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                        Container(
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          child: Icon(
+                            page.icon,
+                            size: 72,
+                            color: AppColors.primary,
                           ),
                         ),
-                        child: const Text('Back'),
-                      ),
-                    ),
-                  if (_currentStep > 0) const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _goToNextStep,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        const SizedBox(height: 32),
+                        Text(
+                          page.title,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
                         ),
-                      ),
-                      child: Text(
-                        _currentStep == _stepTitles.length - 1
-                            ? 'Finish'
-                            : 'Continue',
-                      ),
+                        const SizedBox(height: 12),
+                        Text(
+                          page.description,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStepContent(
-    BuildContext context, {
-    required String title,
-    required Widget child,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-      child: AppCard(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Tell us a bit more so we can tailor your experience.',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 20),
-              child,
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required String validator,
-    IconData? icon,
-    TextInputType? keyboardType,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: (value) {
-        if (value == null || value.trim().isEmpty) {
-          return validator;
-        }
-        return null;
-      },
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: icon != null ? Icon(icon, color: AppColors.primary) : null,
-        filled: true,
-        fillColor: AppColors.background,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 16,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateSelector(BuildContext context) {
-    return InkWell(
-      onTap: () => _pickDate(context),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.calendar_today_rounded, color: AppColors.primary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _targetDate == null
-                    ? 'Select target date'
-                    : '${_targetDate!.day}/${_targetDate!.month}/${_targetDate!.year}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: _targetDate == null
-                      ? AppColors.textSecondary
-                      : AppColors.textPrimary,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_pages.length, (index) {
+                final isActive = index == _currentPage;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: isActive ? 24 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.primary
+                        : AppColors.primary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                );
+              }),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _goToNextPage,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(_isLastPage ? 'Get Started' : 'Next'),
                 ),
               ),
             ),

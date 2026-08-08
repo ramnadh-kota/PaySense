@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
+import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/budget_provider.dart';
 import 'package:paysense/shared/providers/goal_provider.dart';
+import 'package:paysense/shared/providers/recurring_transaction_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
+import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 import '../../core/routes/app_routes.dart';
 import '../transactions/presentation/add_expense_screen.dart';
@@ -26,6 +29,9 @@ class DashboardScreen extends ConsumerWidget {
     final budgetTotals = ref.watch(budgetTotalsProvider);
     final goalsAsync = ref.watch(goalsProvider);
     final goalTotals = ref.watch(goalTotalsProvider);
+    final upcomingPayments = ref.watch(upcomingPaymentsProvider);
+    final profileAsync = ref.watch(userProfileProvider);
+    final greeting = _greetingFor(now, profileAsync.value?.fullName ?? '');
     final currencyFormatter = NumberFormat.currency(
       locale: 'en_IN',
       symbol: '₹',
@@ -40,6 +46,7 @@ class DashboardScreen extends ConsumerWidget {
             final totals = _calculateTotals(transactions);
             return _buildDashboardContent(
               context: context,
+              greeting: greeting,
               formattedDate: formattedDate,
               currencyFormatter: currencyFormatter,
               totals: totals,
@@ -48,6 +55,7 @@ class DashboardScreen extends ConsumerWidget {
               budgetTotals: budgetTotals,
               hasGoals: (goalsAsync.value ?? const []).isNotEmpty,
               goalTotals: goalTotals,
+              upcomingPayments: upcomingPayments,
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -72,6 +80,7 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildDashboardContent({
     required BuildContext context,
+    required String greeting,
     required String formattedDate,
     required NumberFormat currencyFormatter,
     required _DashboardTotals totals,
@@ -79,6 +88,7 @@ class DashboardScreen extends ConsumerWidget {
     required BudgetTotals budgetTotals,
     required bool hasGoals,
     required GoalTotals goalTotals,
+    required List<RecurringTransaction> upcomingPayments,
     List<Transaction> transactions = const <Transaction>[],
   }) {
     final recentTransactions = transactions.toList()
@@ -98,7 +108,7 @@ class DashboardScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Good Evening, Ramnadh 👋',
+                      greeting,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
                             fontWeight: FontWeight.w700,
@@ -375,6 +385,104 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Upcoming Payments',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.recurring),
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (upcomingPayments.isEmpty)
+            AppCard(
+              padding: const EdgeInsets.all(20),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.recurring),
+              child: Text(
+                'No payments due in the next 7 days.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          else
+            AppCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.recurring),
+              child: Column(
+                children: upcomingPayments.take(3).map((payment) {
+                  final isIncome =
+                      payment.transactionType.toLowerCase() == 'income';
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: (isIncome
+                                    ? AppColors.success
+                                    : AppColors.danger)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isIncome
+                                ? Icons.arrow_downward_rounded
+                                : Icons.arrow_upward_rounded,
+                            color: isIncome
+                                ? AppColors.success
+                                : AppColors.danger,
+                            size: 16,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                payment.title,
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                              ),
+                              Text(
+                                'Due ${_formatDate(payment.nextDueDate)}',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${isIncome ? '+' : '-'}${currencyFormatter.format(payment.amount)}',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: isIncome
+                                    ? AppColors.success
+                                    : AppColors.danger,
+                              ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          const SizedBox(height: 24),
           Text(
             'Quick Actions',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -519,6 +627,20 @@ _DashboardTotals _calculateTotals(List<Transaction> transactions) {
     balance: totalIncome - totalExpense,
   );
 }
+
+String _greetingFor(DateTime now, String fullName) {
+  final timeOfDay = now.hour < 12
+      ? 'Morning'
+      : now.hour < 17
+      ? 'Afternoon'
+      : 'Evening';
+  final firstName = fullName.trim().isEmpty
+      ? 'there'
+      : fullName.trim().split(' ').first;
+  return 'Good $timeOfDay, $firstName 👋';
+}
+
+String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
 String _formatAmount(double amount, String transactionType) {
   final sign = transactionType.toLowerCase() == 'income' ? '+' : '-';

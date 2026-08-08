@@ -1,6 +1,7 @@
 import 'package:paysense/features/ai/models/financial_context.dart';
 import 'package:paysense/shared/repositories/budget_repository.dart';
 import 'package:paysense/shared/repositories/goal_repository.dart';
+import 'package:paysense/shared/repositories/recurring_transaction_repository.dart';
 import 'package:paysense/shared/repositories/user_profile_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
@@ -16,6 +17,9 @@ class FinancialContextBuilder {
     final transactions = await TransactionRepository.instance.getAll();
     final budgets = await BudgetRepository.instance.getAll();
     final goals = await GoalRepository.instance.getAll();
+    final recurringTransactions = await RecurringTransactionRepository
+        .instance
+        .getAll();
 
     final totalWalletBalance = wallets.fold<double>(
       0.0,
@@ -91,6 +95,34 @@ class FinancialContextBuilder {
         ? ''
         : incompleteGoals.first.title;
 
+    final activeRecurring =
+        recurringTransactions
+            .where((r) => r.isActive && !r.isExpired)
+            .toList()
+          ..sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
+
+    double monthlyRecurringIncome = 0;
+    double monthlyRecurringExpense = 0;
+    for (final recurring in activeRecurring) {
+      final monthlyAmount = _monthlyEquivalent(
+        recurring.amount,
+        recurring.frequency,
+      );
+      if (recurring.transactionType.toLowerCase() == 'income') {
+        monthlyRecurringIncome += monthlyAmount;
+      } else {
+        monthlyRecurringExpense += monthlyAmount;
+      }
+    }
+
+    final nextUpcoming = activeRecurring.isEmpty
+        ? null
+        : activeRecurring.first;
+    final nextUpcomingPayment = nextUpcoming?.title ?? '';
+    final nextUpcomingPaymentDate = nextUpcoming == null
+        ? ''
+        : '${nextUpcoming.nextDueDate.day}/${nextUpcoming.nextDueDate.month}/${nextUpcoming.nextDueDate.year}';
+
     return FinancialContext(
       fullName: profile?.fullName ?? '',
       monthlyIncome: profile?.monthlyIncome ?? 0.0,
@@ -111,6 +143,26 @@ class FinancialContextBuilder {
       totalCurrentSavings: totalCurrentSavings,
       nearestGoal: nearestGoal,
       goalCompletionPercentage: goalCompletionPercentage,
+      totalRecurringTransactions: recurringTransactions.length,
+      activeRecurringTransactions: activeRecurring.length,
+      monthlyRecurringIncome: monthlyRecurringIncome,
+      monthlyRecurringExpense: monthlyRecurringExpense,
+      nextUpcomingPayment: nextUpcomingPayment,
+      nextUpcomingPaymentDate: nextUpcomingPaymentDate,
     );
+  }
+
+  double _monthlyEquivalent(double amount, String frequency) {
+    switch (frequency) {
+      case 'Daily':
+        return amount * 30;
+      case 'Weekly':
+        return amount * (30 / 7);
+      case 'Yearly':
+        return amount / 12;
+      case 'Monthly':
+      default:
+        return amount;
+    }
   }
 }

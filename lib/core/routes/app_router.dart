@@ -4,6 +4,9 @@ import '../../features/analytics/analytics_screen.dart';
 import '../../features/budget/presentation/screens/budget_screen.dart';
 import '../../features/goals/presentation/screens/goals_screen.dart';
 import '../../features/navigation/navigation_screen.dart';
+import '../../features/onboarding/presentation/onboarding_screen.dart';
+import '../../features/recurring/presentation/screens/recurring_screen.dart';
+import '../../features/profile/presentation/profile_setup_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/wallet/wallet_screen.dart';
@@ -16,6 +19,10 @@ class AppRouter {
     switch (settings.name) {
       case AppRoutes.splash:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
+      case AppRoutes.onboarding:
+        return MaterialPageRoute(builder: (_) => const OnboardingScreen());
+      case AppRoutes.profileSetup:
+        return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
       case AppRoutes.navigation:
         return MaterialPageRoute(builder: (_) => const NavigationScreen());
       case AppRoutes.wallet:
@@ -26,6 +33,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const BudgetScreen());
       case AppRoutes.goals:
         return MaterialPageRoute(builder: (_) => const GoalsScreen());
+      case AppRoutes.recurring:
+        return MaterialPageRoute(builder: (_) => const RecurringScreen());
       case AppRoutes.aiCoach:
         return MaterialPageRoute(builder: (_) => const AiScreen());
       case AppRoutes.profile:
