@@ -6,6 +6,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/signup_screen.dart';
 import '../../features/bills/presentation/screens/bills_screen.dart';
 import '../../features/budget/presentation/screens/budget_screen.dart';
+import '../../features/financial_health/presentation/financial_health_screen.dart';
 import '../../features/goals/presentation/screens/goals_screen.dart';
 import '../../features/loans/presentation/screens/loans_screen.dart';
 import '../../features/navigation/navigation_screen.dart';
@@ -16,6 +17,7 @@ import '../../features/profile/profile_screen.dart';
 import '../../features/settings/presentation/change_password_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
+import '../../features/transactions/presentation/transactions_screen.dart';
 import '../../features/wallet/wallet_screen.dart';
 import 'app_routes.dart';
 
@@ -40,6 +42,10 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const NavigationScreen());
       case AppRoutes.wallet:
         return MaterialPageRoute(builder: (_) => const WalletScreen());
+      case AppRoutes.transactions:
+        return MaterialPageRoute(builder: (_) => const TransactionsScreen());
+      case AppRoutes.financialHealth:
+        return MaterialPageRoute(builder: (_) => const FinancialHealthScreen());
       case AppRoutes.analytics:
         return MaterialPageRoute(builder: (_) => const AnalyticsScreen());
       case AppRoutes.budget:

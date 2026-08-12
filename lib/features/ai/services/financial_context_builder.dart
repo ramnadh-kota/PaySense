@@ -7,6 +7,7 @@ import 'package:paysense/shared/repositories/recurring_transaction_repository.da
 import 'package:paysense/shared/repositories/user_profile_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
+import 'package:paysense/shared/utils/financial_health_calculator.dart';
 
 class FinancialContextBuilder {
   FinancialContextBuilder._();
@@ -165,6 +166,20 @@ class FinancialContextBuilder {
         ? ''
         : '${nextLoan.loanName} - ₹${nextLoan.emiAmount.toStringAsFixed(0)} due ${nextLoan.nextDueDate.day}/${nextLoan.nextDueDate.month}/${nextLoan.nextDueDate.year}';
 
+    final financialHealth = FinancialHealthCalculator.calculate(
+      transactions: transactions,
+      budgets: budgets,
+      goals: goals,
+      loans: loans,
+      bills: bills,
+      wallets: wallets,
+      profileMonthlyIncome: profile?.monthlyIncome ?? 0.0,
+      now: now,
+    );
+    final topFinancialInsight = financialHealth.insights.isEmpty
+        ? ''
+        : financialHealth.insights.first.message;
+
     return FinancialContext(
       fullName: profile?.fullName ?? '',
       monthlyIncome: profile?.monthlyIncome ?? 0.0,
@@ -203,6 +218,14 @@ class FinancialContextBuilder {
       totalInterestRemaining: totalInterestRemaining,
       activeLoanCount: activeLoans.length,
       nextLoanPayment: nextLoanPayment,
+      financialHealthScore: financialHealth.overallScore,
+      financialHealthStatus: financialHealthStatusLabel(financialHealth.status),
+      savingsHealthScore: financialHealth.components.savings,
+      budgetHealthScore: financialHealth.components.budget,
+      goalHealthScore: financialHealth.components.goals,
+      debtHealthScore: financialHealth.components.debt,
+      paymentHealthScore: financialHealth.components.payments,
+      topFinancialInsight: topFinancialInsight,
     );
   }
 

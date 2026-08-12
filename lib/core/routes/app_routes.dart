@@ -10,6 +10,8 @@ class AppRoutes {
   static const navigation = '/navigation';
   static const dashboard = '/dashboard';
   static const wallet = '/wallet';
+  static const transactions = '/transactions';
+  static const financialHealth = '/financial-health';
   static const analytics = '/analytics';
   static const budget = '/budget';
   static const goals = '/goals';

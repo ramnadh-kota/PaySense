@@ -17,6 +17,7 @@ import 'package:paysense/shared/widgets/app_card.dart';
 import '../../core/routes/app_routes.dart';
 import '../transactions/presentation/add_expense_screen.dart';
 import '../transactions/presentation/add_income_screen.dart';
+import 'widgets/financial_health_card.dart';
 import 'widgets/quick_action_button.dart';
 import 'widgets/summary_card.dart';
 import 'widgets/transaction_item.dart';
@@ -249,6 +250,8 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          const FinancialHealthCard(),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -747,12 +750,22 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Text(
-            'Recent Transactions',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Recent Transactions',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.transactions),
+                child: const Text('See all'),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           AppCard(

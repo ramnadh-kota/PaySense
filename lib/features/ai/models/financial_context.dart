@@ -40,6 +40,17 @@ class FinancialContext {
   final int activeLoanCount;
   final String nextLoanPayment;
 
+  /// App-generated Financial Health wellness indicator (0-100), NOT a
+  /// credit score. See [FinancialHealthCalculator].
+  final int financialHealthScore;
+  final String financialHealthStatus;
+  final int savingsHealthScore;
+  final int budgetHealthScore;
+  final int goalHealthScore;
+  final int debtHealthScore;
+  final int paymentHealthScore;
+  final String topFinancialInsight;
+
   const FinancialContext({
     required this.fullName,
     required this.monthlyIncome,
@@ -78,6 +89,14 @@ class FinancialContext {
     required this.totalInterestRemaining,
     required this.activeLoanCount,
     required this.nextLoanPayment,
+    required this.financialHealthScore,
+    required this.financialHealthStatus,
+    required this.savingsHealthScore,
+    required this.budgetHealthScore,
+    required this.goalHealthScore,
+    required this.debtHealthScore,
+    required this.paymentHealthScore,
+    required this.topFinancialInsight,
   });
 
   FinancialContext copyWith({
@@ -118,6 +137,14 @@ class FinancialContext {
     double? totalInterestRemaining,
     int? activeLoanCount,
     String? nextLoanPayment,
+    int? financialHealthScore,
+    String? financialHealthStatus,
+    int? savingsHealthScore,
+    int? budgetHealthScore,
+    int? goalHealthScore,
+    int? debtHealthScore,
+    int? paymentHealthScore,
+    String? topFinancialInsight,
   }) {
     return FinancialContext(
       fullName: fullName ?? this.fullName,
@@ -168,6 +195,15 @@ class FinancialContext {
           totalInterestRemaining ?? this.totalInterestRemaining,
       activeLoanCount: activeLoanCount ?? this.activeLoanCount,
       nextLoanPayment: nextLoanPayment ?? this.nextLoanPayment,
+      financialHealthScore: financialHealthScore ?? this.financialHealthScore,
+      financialHealthStatus:
+          financialHealthStatus ?? this.financialHealthStatus,
+      savingsHealthScore: savingsHealthScore ?? this.savingsHealthScore,
+      budgetHealthScore: budgetHealthScore ?? this.budgetHealthScore,
+      goalHealthScore: goalHealthScore ?? this.goalHealthScore,
+      debtHealthScore: debtHealthScore ?? this.debtHealthScore,
+      paymentHealthScore: paymentHealthScore ?? this.paymentHealthScore,
+      topFinancialInsight: topFinancialInsight ?? this.topFinancialInsight,
     );
   }
 
@@ -210,6 +246,14 @@ class FinancialContext {
       'totalInterestRemaining': totalInterestRemaining,
       'activeLoanCount': activeLoanCount,
       'nextLoanPayment': nextLoanPayment,
+      'financialHealthScore': financialHealthScore,
+      'financialHealthStatus': financialHealthStatus,
+      'savingsHealthScore': savingsHealthScore,
+      'budgetHealthScore': budgetHealthScore,
+      'goalHealthScore': goalHealthScore,
+      'debtHealthScore': debtHealthScore,
+      'paymentHealthScore': paymentHealthScore,
+      'topFinancialInsight': topFinancialInsight,
     };
   }
 
@@ -257,6 +301,14 @@ class FinancialContext {
     dynamic rawTotalInterestRemaining = map['totalInterestRemaining'];
     dynamic rawActiveLoanCount = map['activeLoanCount'];
     dynamic rawNextLoanPayment = map['nextLoanPayment'];
+    dynamic rawFinancialHealthScore = map['financialHealthScore'];
+    dynamic rawFinancialHealthStatus = map['financialHealthStatus'];
+    dynamic rawSavingsHealthScore = map['savingsHealthScore'];
+    dynamic rawBudgetHealthScore = map['budgetHealthScore'];
+    dynamic rawGoalHealthScore = map['goalHealthScore'];
+    dynamic rawDebtHealthScore = map['debtHealthScore'];
+    dynamic rawPaymentHealthScore = map['paymentHealthScore'];
+    dynamic rawTopFinancialInsight = map['topFinancialInsight'];
 
     if (rawFullName == null) {
       throw ArgumentError.notNull('fullName');
@@ -369,6 +421,30 @@ class FinancialContext {
     if (rawNextLoanPayment == null) {
       throw ArgumentError.notNull('nextLoanPayment');
     }
+    if (rawFinancialHealthScore == null) {
+      throw ArgumentError.notNull('financialHealthScore');
+    }
+    if (rawFinancialHealthStatus == null) {
+      throw ArgumentError.notNull('financialHealthStatus');
+    }
+    if (rawSavingsHealthScore == null) {
+      throw ArgumentError.notNull('savingsHealthScore');
+    }
+    if (rawBudgetHealthScore == null) {
+      throw ArgumentError.notNull('budgetHealthScore');
+    }
+    if (rawGoalHealthScore == null) {
+      throw ArgumentError.notNull('goalHealthScore');
+    }
+    if (rawDebtHealthScore == null) {
+      throw ArgumentError.notNull('debtHealthScore');
+    }
+    if (rawPaymentHealthScore == null) {
+      throw ArgumentError.notNull('paymentHealthScore');
+    }
+    if (rawTopFinancialInsight == null) {
+      throw ArgumentError.notNull('topFinancialInsight');
+    }
 
     String fullName = rawFullName.toString();
 
@@ -479,6 +555,26 @@ class FinancialContext {
     );
     final activeLoanCount = parseInt(rawActiveLoanCount, 'activeLoanCount');
     final nextLoanPayment = rawNextLoanPayment.toString();
+    final financialHealthScore = parseInt(
+      rawFinancialHealthScore,
+      'financialHealthScore',
+    );
+    final financialHealthStatus = rawFinancialHealthStatus.toString();
+    final savingsHealthScore = parseInt(
+      rawSavingsHealthScore,
+      'savingsHealthScore',
+    );
+    final budgetHealthScore = parseInt(
+      rawBudgetHealthScore,
+      'budgetHealthScore',
+    );
+    final goalHealthScore = parseInt(rawGoalHealthScore, 'goalHealthScore');
+    final debtHealthScore = parseInt(rawDebtHealthScore, 'debtHealthScore');
+    final paymentHealthScore = parseInt(
+      rawPaymentHealthScore,
+      'paymentHealthScore',
+    );
+    final topFinancialInsight = rawTopFinancialInsight.toString();
 
     return FinancialContext(
       fullName: fullName,
@@ -518,6 +614,14 @@ class FinancialContext {
       totalInterestRemaining: totalInterestRemaining,
       activeLoanCount: activeLoanCount,
       nextLoanPayment: nextLoanPayment,
+      financialHealthScore: financialHealthScore,
+      financialHealthStatus: financialHealthStatus,
+      savingsHealthScore: savingsHealthScore,
+      budgetHealthScore: budgetHealthScore,
+      goalHealthScore: goalHealthScore,
+      debtHealthScore: debtHealthScore,
+      paymentHealthScore: paymentHealthScore,
+      topFinancialInsight: topFinancialInsight,
     );
   }
 }
