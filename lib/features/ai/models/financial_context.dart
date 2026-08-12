@@ -30,6 +30,15 @@ class FinancialContext {
   final double totalUnpaidBillsAmount;
   final String nextBillTitle;
   final String nextBillDueDate;
+  final double totalLoanAmount;
+  final double outstandingLoanAmount;
+
+  /// Sum of active loans' monthly EMI (distinct from [monthlyEmi], which is
+  /// the user's self-reported figure from profile setup).
+  final double monthlyLoanEmi;
+  final double totalInterestRemaining;
+  final int activeLoanCount;
+  final String nextLoanPayment;
 
   const FinancialContext({
     required this.fullName,
@@ -63,6 +72,12 @@ class FinancialContext {
     required this.totalUnpaidBillsAmount,
     required this.nextBillTitle,
     required this.nextBillDueDate,
+    required this.totalLoanAmount,
+    required this.outstandingLoanAmount,
+    required this.monthlyLoanEmi,
+    required this.totalInterestRemaining,
+    required this.activeLoanCount,
+    required this.nextLoanPayment,
   });
 
   FinancialContext copyWith({
@@ -97,6 +112,12 @@ class FinancialContext {
     double? totalUnpaidBillsAmount,
     String? nextBillTitle,
     String? nextBillDueDate,
+    double? totalLoanAmount,
+    double? outstandingLoanAmount,
+    double? monthlyLoanEmi,
+    double? totalInterestRemaining,
+    int? activeLoanCount,
+    String? nextLoanPayment,
   }) {
     return FinancialContext(
       fullName: fullName ?? this.fullName,
@@ -140,6 +161,13 @@ class FinancialContext {
           totalUnpaidBillsAmount ?? this.totalUnpaidBillsAmount,
       nextBillTitle: nextBillTitle ?? this.nextBillTitle,
       nextBillDueDate: nextBillDueDate ?? this.nextBillDueDate,
+      totalLoanAmount: totalLoanAmount ?? this.totalLoanAmount,
+      outstandingLoanAmount: outstandingLoanAmount ?? this.outstandingLoanAmount,
+      monthlyLoanEmi: monthlyLoanEmi ?? this.monthlyLoanEmi,
+      totalInterestRemaining:
+          totalInterestRemaining ?? this.totalInterestRemaining,
+      activeLoanCount: activeLoanCount ?? this.activeLoanCount,
+      nextLoanPayment: nextLoanPayment ?? this.nextLoanPayment,
     );
   }
 
@@ -176,6 +204,12 @@ class FinancialContext {
       'totalUnpaidBillsAmount': totalUnpaidBillsAmount,
       'nextBillTitle': nextBillTitle,
       'nextBillDueDate': nextBillDueDate,
+      'totalLoanAmount': totalLoanAmount,
+      'outstandingLoanAmount': outstandingLoanAmount,
+      'monthlyLoanEmi': monthlyLoanEmi,
+      'totalInterestRemaining': totalInterestRemaining,
+      'activeLoanCount': activeLoanCount,
+      'nextLoanPayment': nextLoanPayment,
     };
   }
 
@@ -217,6 +251,12 @@ class FinancialContext {
     dynamic rawTotalUnpaidBillsAmount = map['totalUnpaidBillsAmount'];
     dynamic rawNextBillTitle = map['nextBillTitle'];
     dynamic rawNextBillDueDate = map['nextBillDueDate'];
+    dynamic rawTotalLoanAmount = map['totalLoanAmount'];
+    dynamic rawOutstandingLoanAmount = map['outstandingLoanAmount'];
+    dynamic rawMonthlyLoanEmi = map['monthlyLoanEmi'];
+    dynamic rawTotalInterestRemaining = map['totalInterestRemaining'];
+    dynamic rawActiveLoanCount = map['activeLoanCount'];
+    dynamic rawNextLoanPayment = map['nextLoanPayment'];
 
     if (rawFullName == null) {
       throw ArgumentError.notNull('fullName');
@@ -310,6 +350,24 @@ class FinancialContext {
     }
     if (rawNextBillDueDate == null) {
       throw ArgumentError.notNull('nextBillDueDate');
+    }
+    if (rawTotalLoanAmount == null) {
+      throw ArgumentError.notNull('totalLoanAmount');
+    }
+    if (rawOutstandingLoanAmount == null) {
+      throw ArgumentError.notNull('outstandingLoanAmount');
+    }
+    if (rawMonthlyLoanEmi == null) {
+      throw ArgumentError.notNull('monthlyLoanEmi');
+    }
+    if (rawTotalInterestRemaining == null) {
+      throw ArgumentError.notNull('totalInterestRemaining');
+    }
+    if (rawActiveLoanCount == null) {
+      throw ArgumentError.notNull('activeLoanCount');
+    }
+    if (rawNextLoanPayment == null) {
+      throw ArgumentError.notNull('nextLoanPayment');
     }
 
     String fullName = rawFullName.toString();
@@ -409,6 +467,18 @@ class FinancialContext {
     );
     final nextBillTitle = rawNextBillTitle.toString();
     final nextBillDueDate = rawNextBillDueDate.toString();
+    final totalLoanAmount = parseDouble(rawTotalLoanAmount, 'totalLoanAmount');
+    final outstandingLoanAmount = parseDouble(
+      rawOutstandingLoanAmount,
+      'outstandingLoanAmount',
+    );
+    final monthlyLoanEmi = parseDouble(rawMonthlyLoanEmi, 'monthlyLoanEmi');
+    final totalInterestRemaining = parseDouble(
+      rawTotalInterestRemaining,
+      'totalInterestRemaining',
+    );
+    final activeLoanCount = parseInt(rawActiveLoanCount, 'activeLoanCount');
+    final nextLoanPayment = rawNextLoanPayment.toString();
 
     return FinancialContext(
       fullName: fullName,
@@ -442,6 +512,12 @@ class FinancialContext {
       totalUnpaidBillsAmount: totalUnpaidBillsAmount,
       nextBillTitle: nextBillTitle,
       nextBillDueDate: nextBillDueDate,
+      totalLoanAmount: totalLoanAmount,
+      outstandingLoanAmount: outstandingLoanAmount,
+      monthlyLoanEmi: monthlyLoanEmi,
+      totalInterestRemaining: totalInterestRemaining,
+      activeLoanCount: activeLoanCount,
+      nextLoanPayment: nextLoanPayment,
     );
   }
 }

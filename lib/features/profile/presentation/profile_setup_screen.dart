@@ -40,6 +40,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    // If an account (or a prior partial profile) already created a
+    // UserProfile record, pre-fill from it instead of starting blank.
+    final existingProfile = ref.read(userProfileProvider).valueOrNull;
+    if (existingProfile != null) {
+      _fullNameController.text = existingProfile.fullName;
+      _emailController.text = existingProfile.email;
+    }
+  }
+
+  @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();

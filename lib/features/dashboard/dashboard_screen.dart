@@ -8,6 +8,7 @@ import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/bill_provider.dart';
 import 'package:paysense/shared/providers/budget_provider.dart';
 import 'package:paysense/shared/providers/goal_provider.dart';
+import 'package:paysense/shared/providers/loan_provider.dart';
 import 'package:paysense/shared/providers/recurring_transaction_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
@@ -33,6 +34,7 @@ class DashboardScreen extends ConsumerWidget {
     final goalTotals = ref.watch(goalTotalsProvider);
     final upcomingPayments = ref.watch(upcomingPaymentsProvider);
     final upcomingBills = ref.watch(upcomingBillsProvider);
+    final loanSummary = ref.watch(loanSummaryProvider);
     final profileAsync = ref.watch(userProfileProvider);
     final greeting = _greetingFor(now, profileAsync.value?.fullName ?? '');
     final currencyFormatter = NumberFormat.currency(
@@ -60,6 +62,7 @@ class DashboardScreen extends ConsumerWidget {
               goalTotals: goalTotals,
               upcomingPayments: upcomingPayments,
               upcomingBills: upcomingBills,
+              loanSummary: loanSummary,
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -94,6 +97,7 @@ class DashboardScreen extends ConsumerWidget {
     required GoalTotals goalTotals,
     required List<RecurringTransaction> upcomingPayments,
     required List<Bill> upcomingBills,
+    required LoanSummary loanSummary,
     List<Transaction> transactions = const <Transaction>[],
   }) {
     final recentTransactions = transactions.toList()
@@ -582,6 +586,89 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   );
                 }).toList(),
+              ),
+            ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Loans',
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pushNamed(AppRoutes.loans),
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (loanSummary.activeLoans == 0)
+            AppCard(
+              padding: const EdgeInsets.all(20),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.loans),
+              child: Text(
+                'No active loans. Add one to track EMIs automatically.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            )
+          else
+            AppCard(
+              padding: const EdgeInsets.all(20),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.loans),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Outstanding: ${currencyFormatter.format(loanSummary.outstandingBalance)}',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Monthly EMI: ${currencyFormatter.format(loanSummary.totalEmiPerMonth)}',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${loanSummary.activeLoans} active',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (loanSummary.nextEmiDate != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Next EMI: ${loanSummary.nextEmiLoanName} · ${currencyFormatter.format(loanSummary.nextEmiAmount)} · ${_formatDate(loanSummary.nextEmiDate!)}',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ],
               ),
             ),
           const SizedBox(height: 24),

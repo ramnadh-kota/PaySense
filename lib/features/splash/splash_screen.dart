@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/shared/providers/app_settings_provider.dart';
+import 'package:paysense/shared/providers/auth_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -32,8 +33,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
+    if (isFirstLaunch) {
+      Navigator.of(context).pushReplacementNamed(AppRoutes.onboarding);
+      return;
+    }
+
+    final authState = await ref.read(authProvider.future);
+
+    if (!mounted) {
+      return;
+    }
+
     Navigator.of(context).pushReplacementNamed(
-      isFirstLaunch ? AppRoutes.onboarding : AppRoutes.navigation,
+      authState.isAuthenticated ? AppRoutes.navigation : AppRoutes.login,
     );
   }
 

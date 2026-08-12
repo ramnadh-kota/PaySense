@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
+import 'package:paysense/core/routes/app_routes.dart';
+import 'package:paysense/shared/providers/auth_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
@@ -121,11 +123,72 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                 ),
               ],
+              const SizedBox(height: 16),
+              AppCard(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => _handleLogout(context, ref),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.logout_rounded,
+                        size: 20,
+                        color: AppColors.danger,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Log Out',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _handleLogout(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text(
+          'You can log back in anytime. Your financial data stays safely stored on this device.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    await ref.read(authProvider.notifier).logout();
+
+    if (!context.mounted) {
+      return;
+    }
+
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
   }
 }
 

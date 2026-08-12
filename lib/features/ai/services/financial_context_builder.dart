@@ -2,6 +2,7 @@ import 'package:paysense/features/ai/models/financial_context.dart';
 import 'package:paysense/shared/repositories/bill_repository.dart';
 import 'package:paysense/shared/repositories/budget_repository.dart';
 import 'package:paysense/shared/repositories/goal_repository.dart';
+import 'package:paysense/shared/repositories/loan_repository.dart';
 import 'package:paysense/shared/repositories/recurring_transaction_repository.dart';
 import 'package:paysense/shared/repositories/user_profile_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
@@ -22,6 +23,7 @@ class FinancialContextBuilder {
         .instance
         .getAll();
     final bills = await BillRepository.instance.getAll();
+    final loans = await LoanRepository.instance.getAll();
 
     final totalWalletBalance = wallets.fold<double>(
       0.0,
@@ -140,6 +142,29 @@ class FinancialContextBuilder {
         ? ''
         : '${nextBill.dueDate.day}/${nextBill.dueDate.month}/${nextBill.dueDate.year}';
 
+    final activeLoans = loans.where((l) => l.isActive).toList()
+      ..sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
+    final totalLoanAmount = loans.fold<double>(
+      0.0,
+      (sum, l) => sum + l.principalAmount,
+    );
+    final outstandingLoanAmount = activeLoans.fold<double>(
+      0.0,
+      (sum, l) => sum + l.outstandingAmount,
+    );
+    final monthlyLoanEmi = activeLoans.fold<double>(
+      0.0,
+      (sum, l) => sum + l.emiAmount,
+    );
+    final totalInterestRemaining = activeLoans.fold<double>(
+      0.0,
+      (sum, l) => sum + l.estimatedInterestRemaining,
+    );
+    final nextLoan = activeLoans.isEmpty ? null : activeLoans.first;
+    final nextLoanPayment = nextLoan == null
+        ? ''
+        : '${nextLoan.loanName} - ₹${nextLoan.emiAmount.toStringAsFixed(0)} due ${nextLoan.nextDueDate.day}/${nextLoan.nextDueDate.month}/${nextLoan.nextDueDate.year}';
+
     return FinancialContext(
       fullName: profile?.fullName ?? '',
       monthlyIncome: profile?.monthlyIncome ?? 0.0,
@@ -172,6 +197,12 @@ class FinancialContextBuilder {
       totalUnpaidBillsAmount: totalUnpaidBillsAmount,
       nextBillTitle: nextBillTitle,
       nextBillDueDate: nextBillDueDate,
+      totalLoanAmount: totalLoanAmount,
+      outstandingLoanAmount: outstandingLoanAmount,
+      monthlyLoanEmi: monthlyLoanEmi,
+      totalInterestRemaining: totalInterestRemaining,
+      activeLoanCount: activeLoans.length,
+      nextLoanPayment: nextLoanPayment,
     );
   }
 
