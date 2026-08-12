@@ -5,6 +5,7 @@ import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
+import 'package:paysense/shared/repositories/app_settings_repository.dart';
 import 'package:paysense/shared/repositories/recurring_transaction_repository.dart';
 
 final recurringTransactionRepositoryProvider =
@@ -220,8 +221,10 @@ class RecurringTransactionsNotifier
   }
 
   Future<void> _rescheduleReminders(List<RecurringTransaction> items) async {
+    final remindersEnabled =
+        AppSettingsRepository.instance.recurringRemindersEnabled();
     for (final item in items) {
-      if (!item.isActive || item.isExpired) {
+      if (!item.isActive || item.isExpired || !remindersEnabled) {
         await NotificationService.instance.cancelReminder(item.id);
         continue;
       }

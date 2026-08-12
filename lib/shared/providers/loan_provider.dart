@@ -5,6 +5,7 @@ import 'package:paysense/shared/models/loan.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
+import 'package:paysense/shared/repositories/app_settings_repository.dart';
 import 'package:paysense/shared/repositories/loan_repository.dart';
 
 final loanRepositoryProvider = Provider<LoanRepository>((ref) {
@@ -209,8 +210,9 @@ class LoansNotifier extends AsyncNotifier<List<Loan>> {
   }
 
   Future<void> _rescheduleReminders(List<Loan> loans) async {
+    final remindersEnabled = AppSettingsRepository.instance.loanRemindersEnabled();
     for (final loan in loans) {
-      if (!loan.isActive) {
+      if (!loan.isActive || !remindersEnabled) {
         await _cancelReminders(loan.id);
         continue;
       }

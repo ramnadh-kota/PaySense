@@ -12,6 +12,7 @@ import 'package:paysense/shared/providers/loan_provider.dart';
 import 'package:paysense/shared/providers/recurring_transaction_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
+import 'package:paysense/shared/utils/currency_formatter.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 import '../../core/routes/app_routes.dart';
 import '../transactions/presentation/add_expense_screen.dart';
@@ -37,9 +38,12 @@ class DashboardScreen extends ConsumerWidget {
     final loanSummary = ref.watch(loanSummaryProvider);
     final profileAsync = ref.watch(userProfileProvider);
     final greeting = _greetingFor(now, profileAsync.value?.fullName ?? '');
+    final currencyCode = profileAsync.value?.currency.isNotEmpty == true
+        ? profileAsync.value!.currency
+        : 'INR';
     final currencyFormatter = NumberFormat.currency(
       locale: 'en_IN',
-      symbol: '₹',
+      symbol: CurrencyFormatter.symbolFor(currencyCode),
       decimalDigits: 0,
     );
 
@@ -54,6 +58,7 @@ class DashboardScreen extends ConsumerWidget {
               greeting: greeting,
               formattedDate: formattedDate,
               currencyFormatter: currencyFormatter,
+              currencyCode: currencyCode,
               totals: totals,
               transactions: transactions,
               hasBudgets: (budgetsAsync.value ?? const []).isNotEmpty,
@@ -90,6 +95,7 @@ class DashboardScreen extends ConsumerWidget {
     required String greeting,
     required String formattedDate,
     required NumberFormat currencyFormatter,
+    required String currencyCode,
     required _DashboardTotals totals,
     required bool hasBudgets,
     required BudgetTotals budgetTotals,
@@ -771,6 +777,7 @@ class DashboardScreen extends ConsumerWidget {
                         amount: _formatAmount(
                           transaction.amount,
                           transaction.transactionType,
+                          currencyCode,
                         ),
                         icon: _iconForTransactionType(
                           transaction.transactionType,
@@ -831,9 +838,9 @@ String _greetingFor(DateTime now, String fullName) {
 
 String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
 
-String _formatAmount(double amount, String transactionType) {
+String _formatAmount(double amount, String transactionType, String currencyCode) {
   final sign = transactionType.toLowerCase() == 'income' ? '+' : '-';
-  return '$sign₹${amount.toStringAsFixed(0)}';
+  return '$sign${CurrencyFormatter.symbolFor(currencyCode)}${amount.toStringAsFixed(0)}';
 }
 
 IconData _iconForTransactionType(String transactionType) {

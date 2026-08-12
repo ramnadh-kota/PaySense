@@ -121,6 +121,38 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = AsyncValue.data(AuthState.authenticated(account));
   }
 
+  /// Changes the password for the currently authenticated account. Verifies
+  /// [currentPassword] against the stored hash before writing a new
+  /// salted hash — never handles or stores plaintext.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final currentAccount = state.value?.account;
+    if (currentAccount == null) {
+      throw AuthException('You must be logged in to change your password.');
+    }
+
+    final isCurrentValid = PasswordHasher.verify(
+      currentPassword,
+      currentAccount.passwordSalt,
+      currentAccount.passwordHash,
+    );
+    if (!isCurrentValid) {
+      throw AuthException('Current password is incorrect.');
+    }
+
+    final salt = PasswordHasher.generateSalt();
+    final updatedAccount = currentAccount.copyWith(
+      passwordHash: PasswordHasher.hash(newPassword, salt),
+      passwordSalt: salt,
+      updatedAt: DateTime.now(),
+    );
+
+    await ref.read(accountRepositoryProvider).update(updatedAccount);
+    state = AsyncValue.data(AuthState.authenticated(updatedAccount));
+  }
+
   /// Clears only the authenticated session. Financial data (profile, wallet,
   /// transactions, etc.) is never touched.
   Future<void> logout() async {

@@ -5,6 +5,7 @@ import 'package:paysense/shared/models/bill.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
+import 'package:paysense/shared/repositories/app_settings_repository.dart';
 import 'package:paysense/shared/repositories/bill_repository.dart';
 
 final billRepositoryProvider = Provider<BillRepository>((ref) {
@@ -197,8 +198,9 @@ class BillsNotifier extends AsyncNotifier<List<Bill>> {
   }
 
   Future<void> _rescheduleReminders(List<Bill> bills) async {
+    final remindersEnabled = AppSettingsRepository.instance.billRemindersEnabled();
     for (final bill in bills) {
-      if (bill.isPaid) {
+      if (bill.isPaid || !remindersEnabled) {
         await NotificationService.instance.cancelReminder(bill.id);
         continue;
       }

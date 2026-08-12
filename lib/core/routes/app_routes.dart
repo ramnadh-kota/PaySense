@@ -18,4 +18,6 @@ class AppRoutes {
   static const loans = '/loans';
   static const aiCoach = '/ai-coach';
   static const profile = '/profile';
+  static const settings = '/settings';
+  static const changePassword = '/change-password';
 }
