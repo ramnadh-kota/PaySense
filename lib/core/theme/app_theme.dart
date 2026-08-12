@@ -24,27 +24,28 @@ class AppTheme {
     ),
   );
 
-  /// A deliberate dark variant — not an inversion of [lightTheme]. Teal stays
-  /// the primary brand color, orange stays the accent, and surfaces use deep
-  /// charcoal neutrals derived from the brand's charcoal rather than a
-  /// generic dark gray. Note that most PaySense screens paint with the
+  /// A deliberate dark variant — not an inversion of [lightTheme]. Deep Teal
+  /// (via [AppColors.primaryDark]) anchors dark-mode brand surfaces, Coral
+  /// Orange stays the accent, and neutral surfaces are dark charcoal rather
+  /// than a generic gray. Note that most PaySense screens paint with the
   /// [AppColors] constants directly (not `Theme.of(context)`), so this
   /// affects default Material chrome (dialogs, switches, text selection,
   /// etc.) rather than a full app-wide re-skin — see Settings feature notes.
   static ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
-    scaffoldBackgroundColor: const Color(0xFF1A1A1A),
+    scaffoldBackgroundColor: const Color(0xFF12201F),
     primaryColor: AppColors.primary,
     textTheme: AppTypography.textTheme.apply(
       bodyColor: Colors.white,
       displayColor: Colors.white,
     ),
     colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+      seedColor: AppColors.primaryDark,
       brightness: Brightness.dark,
-      surface: const Color(0xFF262626),
+      surface: const Color(0xFF1B2B2A),
     ).copyWith(
+      primary: AppColors.primary,
       secondary: AppColors.accent,
       onSecondary: Colors.white,
       error: AppColors.danger,
@@ -56,7 +57,7 @@ class AppTheme {
       backgroundColor: Colors.transparent,
       foregroundColor: Colors.white,
     ),
-    cardColor: const Color(0xFF262626),
-    dividerColor: const Color(0xFF3A3A3A),
+    cardColor: const Color(0xFF1B2B2A),
+    dividerColor: const Color(0xFF2E3F3E),
   );
 }

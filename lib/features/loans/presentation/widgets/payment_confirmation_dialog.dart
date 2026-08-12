@@ -60,7 +60,7 @@ class PaymentConfirmationDialog extends StatelessWidget {
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.accent),
           child: const Text('Confirm payment'),
         ),
       ],

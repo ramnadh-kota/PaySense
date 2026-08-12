@@ -41,7 +41,7 @@ class NavigationScreen extends ConsumerWidget {
             ),
           );
         },
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.accent,
         child: const Icon(Icons.add_rounded),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
