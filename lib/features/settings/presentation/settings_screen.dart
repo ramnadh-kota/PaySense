@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/routes/app_routes.dart';
+import 'package:paysense/shared/models/app_lock_settings.dart';
 import 'package:paysense/shared/models/app_settings.dart';
+import 'package:paysense/shared/providers/app_lock_provider.dart';
 import 'package:paysense/shared/providers/auth_provider.dart';
 import 'package:paysense/shared/providers/settings_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
@@ -53,13 +55,19 @@ class SettingsScreen extends ConsumerWidget {
                       context,
                     ).pushNamed(AppRoutes.changePassword),
                   ),
-                  const _TileDivider(),
-                  _SettingsTile(
-                    icon: Icons.shield_outlined,
-                    label: 'Security',
-                    onTap: () => _showSecurityInfo(context),
-                  ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _SectionLabel('Security'),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: _AppLockSection(
+                onToggle: (value) => _handleAppLockToggle(context, ref, value),
+                onAuthMethodTap: () => _showAuthMethodPicker(context, ref),
+                onTimeoutTap: () => _showLockTimeoutPicker(context, ref),
+                onChangePinTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.appLockPinSetup),
               ),
             ),
             const SizedBox(height: 24),
@@ -171,21 +179,112 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
-  void _showSecurityInfo(BuildContext context) {
+  Future<void> _handleAppLockToggle(
+    BuildContext context,
+    WidgetRef ref,
+    bool enable,
+  ) async {
+    final notifier = ref.read(appLockSettingsProvider.notifier);
+
+    if (!enable) {
+      await notifier.setEnabled(false);
+      return;
+    }
+
+    final hasPin = ref.read(appLockSettingsProvider).value?.hasPinConfigured ?? false;
+    if (!hasPin) {
+      // A PIN fallback is required before App Lock can be enabled, so a
+      // biometric-only setup can never strand the user outside their app.
+      await Navigator.of(context).pushNamed(AppRoutes.appLockPinSetup);
+      final pinNowConfigured =
+          ref.read(appLockSettingsProvider).value?.hasPinConfigured ?? false;
+      if (!pinNowConfigured) {
+        return; // User backed out without setting a PIN — don't enable.
+      }
+    }
+
+    await notifier.setEnabled(true);
+  }
+
+  void _showAuthMethodPicker(BuildContext context, WidgetRef ref) {
+    final settings = ref.read(appLockSettingsProvider).value;
+    final biometricAvailable = ref.read(biometricAvailableProvider).value ?? false;
+
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Security'),
-        content: const Text(
-          'PaySense stores your data locally on this device. Your password '
-          'is never stored in plain text — only a salted hash is kept.',
+        title: const Text('Authentication method'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (biometricAvailable)
+              ListTile(
+                title: const Text('Biometrics'),
+                trailing: settings?.method == LockAuthMethod.biometric
+                    ? Icon(Icons.check_rounded, color: AppColors.primary)
+                    : null,
+                onTap: () async {
+                  Navigator.of(dialogContext).pop();
+                  await ref
+                      .read(appLockSettingsProvider.notifier)
+                      .setMethod(LockAuthMethod.biometric);
+                },
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Text(
+                  'Biometric authentication isn\'t available on this device.',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                ),
+              ),
+            ListTile(
+              title: const Text('PIN'),
+              trailing: settings?.method == LockAuthMethod.pin
+                  ? Icon(Icons.check_rounded, color: AppColors.primary)
+                  : null,
+              onTap: () async {
+                Navigator.of(dialogContext).pop();
+                final hasPin = settings?.hasPinConfigured ?? false;
+                if (!hasPin) {
+                  await Navigator.of(
+                    context,
+                  ).pushNamed(AppRoutes.appLockPinSetup);
+                }
+                await ref
+                    .read(appLockSettingsProvider.notifier)
+                    .setMethod(LockAuthMethod.pin);
+              },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
-          ),
-        ],
+      ),
+    );
+  }
+
+  void _showLockTimeoutPicker(BuildContext context, WidgetRef ref) {
+    final settings = ref.read(appLockSettingsProvider).value;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Lock after'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: LockTimeout.values.map((timeout) {
+            return ListTile(
+              title: Text(timeout.label),
+              trailing: settings?.timeout == timeout
+                  ? Icon(Icons.check_rounded, color: AppColors.primary)
+                  : null,
+              onTap: () async {
+                Navigator.of(dialogContext).pop();
+                await ref
+                    .read(appLockSettingsProvider.notifier)
+                    .setTimeout(timeout);
+              },
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -618,6 +717,92 @@ class _NotificationSwitchRow extends StatelessWidget {
           activeThumbColor: AppColors.primary,
           onChanged: onChanged,
         ),
+      ],
+    );
+  }
+}
+
+class _AppLockSection extends ConsumerWidget {
+  const _AppLockSection({
+    required this.onToggle,
+    required this.onAuthMethodTap,
+    required this.onTimeoutTap,
+    required this.onChangePinTap,
+  });
+
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onAuthMethodTap;
+  final VoidCallback onTimeoutTap;
+  final VoidCallback onChangePinTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings =
+        ref.watch(appLockSettingsProvider).value ?? const AppLockSettings();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.lock_outline_rounded, size: 20, color: AppColors.primary),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'App Lock',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Protect PaySense when you're away from the app.",
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: settings.enabled,
+                activeThumbColor: AppColors.primary,
+                onChanged: onToggle,
+              ),
+            ],
+          ),
+        ),
+        if (settings.enabled) ...[
+          const _TileDivider(),
+          _SettingsTile(
+            icon: settings.method == LockAuthMethod.biometric
+                ? Icons.fingerprint_rounded
+                : Icons.pin_outlined,
+            label: 'Authentication method',
+            subtitle: settings.method == LockAuthMethod.biometric
+                ? 'Biometrics'
+                : 'PIN',
+            onTap: onAuthMethodTap,
+          ),
+          const _TileDivider(),
+          _SettingsTile(
+            icon: Icons.timer_outlined,
+            label: 'Lock after',
+            subtitle: settings.timeout.label,
+            onTap: onTimeoutTap,
+          ),
+          const _TileDivider(),
+          _SettingsTile(
+            icon: Icons.password_rounded,
+            label: settings.hasPinConfigured ? 'Change PIN' : 'Set up PIN',
+            onTap: onChangePinTap,
+          ),
+        ],
       ],
     );
   }

@@ -14,6 +14,7 @@ import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/recurring/presentation/screens/recurring_screen.dart';
 import '../../features/profile/presentation/profile_setup_screen.dart';
 import '../../features/profile/profile_screen.dart';
+import '../../features/settings/presentation/app_lock_pin_setup_screen.dart';
 import '../../features/settings/presentation/change_password_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/splash/splash_screen.dart';
@@ -66,6 +67,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
       case AppRoutes.changePassword:
         return MaterialPageRoute(builder: (_) => const ChangePasswordScreen());
+      case AppRoutes.appLockPinSetup:
+        return MaterialPageRoute(builder: (_) => const AppLockPinSetupScreen());
       default:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
     }

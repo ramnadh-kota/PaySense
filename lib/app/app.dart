@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/routes/app_router.dart';
 import '../core/routes/app_routes.dart';
 import '../core/theme/app_theme.dart';
+import '../features/app_lock/presentation/app_lock_gate.dart';
 import '../features/splash/splash_screen.dart';
 import '../shared/models/app_settings.dart';
 import '../shared/providers/settings_provider.dart';
@@ -27,6 +28,8 @@ class PaySenseApp extends StatelessWidget {
             initialRoute: AppRoutes.splash,
             onGenerateRoute: AppRouter.onGenerateRoute,
             home: const SplashScreen(),
+            builder: (context, child) =>
+                AppLockGate(child: child ?? const SizedBox.shrink()),
           );
         },
       ),

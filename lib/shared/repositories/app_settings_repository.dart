@@ -1,6 +1,8 @@
 import 'package:hive/hive.dart';
 
+import '../models/app_lock_settings.dart';
 import '../models/app_settings.dart';
+import '../utils/password_hasher.dart';
 
 /// Stores small app-level flags (first-launch detection, user preferences)
 /// in an untyped Hive box, separate from the [UserProfile] record itself.
@@ -15,6 +17,11 @@ class AppSettingsRepository {
   static const String _billRemindersKey = 'notifyBillReminders';
   static const String _recurringRemindersKey = 'notifyRecurringReminders';
   static const String _loanRemindersKey = 'notifyLoanReminders';
+  static const String _appLockEnabledKey = 'appLockEnabled';
+  static const String _appLockMethodKey = 'appLockMethod';
+  static const String _appLockTimeoutKey = 'appLockTimeout';
+  static const String _appLockPinHashKey = 'appLockPinHash';
+  static const String _appLockPinSaltKey = 'appLockPinSalt';
 
   Box get _box => Hive.box(_boxName);
 
@@ -69,6 +76,78 @@ class AppSettingsRepository {
         return AppThemeMode.dark;
       default:
         return AppThemeMode.system;
+    }
+  }
+
+  // ---- App Lock ----
+  //
+  // App Lock is a separate, local re-entry gate on top of the existing
+  // account session — it never touches login/logout state. Only the
+  // enabled/method/timeout flags and a salted PIN hash are stored here;
+  // never a plaintext PIN, never biometric data (biometrics are handled
+  // entirely by the platform via BiometricService and never reach the app).
+
+  Future<AppLockSettings> getAppLockSettings() async {
+    return AppLockSettings(
+      enabled: (_box.get(_appLockEnabledKey) as bool?) ?? false,
+      method: _lockMethodFromKey(_box.get(_appLockMethodKey) as String?),
+      timeout: _lockTimeoutFromKey(_box.get(_appLockTimeoutKey) as String?),
+      hasPinConfigured: hasPin(),
+    );
+  }
+
+  Future<void> setAppLockEnabled(bool enabled) async {
+    await _box.put(_appLockEnabledKey, enabled);
+  }
+
+  Future<void> setAppLockMethod(LockAuthMethod method) async {
+    await _box.put(_appLockMethodKey, method.name);
+  }
+
+  Future<void> setAppLockTimeout(LockTimeout timeout) async {
+    await _box.put(_appLockTimeoutKey, timeout.name);
+  }
+
+  bool hasPin() =>
+      (_box.get(_appLockPinHashKey) as String?) != null &&
+      (_box.get(_appLockPinSaltKey) as String?) != null;
+
+  /// Hashes and stores [pin]. Never persists the plaintext value.
+  Future<void> setPin(String pin) async {
+    final salt = PasswordHasher.generateSalt();
+    final hash = PasswordHasher.hash(pin, salt);
+    await _box.put(_appLockPinHashKey, hash);
+    await _box.put(_appLockPinSaltKey, salt);
+  }
+
+  Future<void> clearPin() async {
+    await _box.delete(_appLockPinHashKey);
+    await _box.delete(_appLockPinSaltKey);
+  }
+
+  bool verifyPin(String pin) {
+    final hash = _box.get(_appLockPinHashKey) as String?;
+    final salt = _box.get(_appLockPinSaltKey) as String?;
+    if (hash == null || salt == null) {
+      return false;
+    }
+    return PasswordHasher.verify(pin, salt, hash);
+  }
+
+  LockAuthMethod _lockMethodFromKey(String? key) {
+    return key == 'pin' ? LockAuthMethod.pin : LockAuthMethod.biometric;
+  }
+
+  LockTimeout _lockTimeoutFromKey(String? key) {
+    switch (key) {
+      case 'afterOneMinute':
+        return LockTimeout.afterOneMinute;
+      case 'afterFiveMinutes':
+        return LockTimeout.afterFiveMinutes;
+      case 'afterFifteenMinutes':
+        return LockTimeout.afterFifteenMinutes;
+      default:
+        return LockTimeout.immediately;
     }
   }
 }

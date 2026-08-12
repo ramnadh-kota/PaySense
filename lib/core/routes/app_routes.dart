@@ -22,4 +22,5 @@ class AppRoutes {
   static const profile = '/profile';
   static const settings = '/settings';
   static const changePassword = '/change-password';
+  static const appLockPinSetup = '/app-lock-pin-setup';
 }
