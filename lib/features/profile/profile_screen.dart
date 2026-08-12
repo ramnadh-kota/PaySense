@@ -27,12 +27,26 @@ class ProfileScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Profile',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Profile',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () =>
+                        Navigator.of(context).pushNamed(AppRoutes.profileSetup),
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      color: AppColors.primary,
+                    ),
+                    tooltip: 'Edit Profile',
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               AppCard(

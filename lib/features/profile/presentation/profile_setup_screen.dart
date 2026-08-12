@@ -39,15 +39,38 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   String _currency = _currencies.first;
   bool _isSaving = false;
 
+  /// The profile as it existed when this screen opened. Non-null means
+  /// we're editing an existing profile (not first-time onboarding) — used
+  /// both to fully pre-fill the form and to preserve fields this form
+  /// doesn't expose (id, createdAt, monthlyEmi, savingsGoal) on save.
+  UserProfile? _existingProfile;
+
+  bool get _isEditing => _existingProfile != null;
+
   @override
   void initState() {
     super.initState();
-    // If an account (or a prior partial profile) already created a
-    // UserProfile record, pre-fill from it instead of starting blank.
+    // If an account (or a prior profile) already created a UserProfile
+    // record, pre-fill every field from it instead of starting blank —
+    // otherwise saving would silently wipe out anything not re-entered.
     final existingProfile = ref.read(userProfileProvider).valueOrNull;
+    _existingProfile = existingProfile;
     if (existingProfile != null) {
       _fullNameController.text = existingProfile.fullName;
       _emailController.text = existingProfile.email;
+      _phoneController.text = existingProfile.phone;
+      _occupationController.text = existingProfile.occupation;
+      _monthlyIncomeController.text = existingProfile.monthlyIncome > 0
+          ? existingProfile.monthlyIncome.toStringAsFixed(0)
+          : '';
+      _countryController.text = existingProfile.country.isNotEmpty
+          ? existingProfile.country
+          : 'India';
+      _dateOfBirth = existingProfile.dateOfBirth;
+      _gender = existingProfile.gender;
+      _currency = _currencies.contains(existingProfile.currency)
+          ? existingProfile.currency
+          : _currencies.first;
     }
   }
 
@@ -86,7 +109,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
     final now = DateTime.now();
     final profile = UserProfile(
-      id: 'profile',
+      id: _existingProfile?.id ?? 'profile',
       fullName: _fullNameController.text.trim(),
       email: _emailController.text.trim(),
       phone: _phoneController.text.trim(),
@@ -96,48 +119,69 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       monthlyIncome: double.tryParse(_monthlyIncomeController.text.trim()) ?? 0.0,
       currency: _currency,
       country: _countryController.text.trim(),
-      createdAt: now,
+      // Not editable from this form — preserve whatever was already there
+      // instead of silently resetting to zero.
+      monthlyEmi: _existingProfile?.monthlyEmi ?? 0.0,
+      savingsGoal: _existingProfile?.savingsGoal ?? 0.0,
+      createdAt: _existingProfile?.createdAt ?? now,
       updatedAt: now,
     );
 
     await ref.read(userProfileProvider.notifier).saveProfile(profile);
-    await ref.read(isFirstLaunchProvider.notifier).completeFirstLaunch();
+    if (!_isEditing) {
+      await ref.read(isFirstLaunchProvider.notifier).completeFirstLaunch();
+    }
 
     if (!mounted) {
       return;
     }
 
     setState(() => _isSaving = false);
-    Navigator.of(
-      context,
-    ).pushNamedAndRemoveUntil(AppRoutes.navigation, (route) => false);
+
+    if (_isEditing) {
+      Navigator.of(context).pop();
+    } else {
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.navigation, (route) => false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: _isEditing
+          ? AppBar(
+              backgroundColor: AppColors.background,
+              elevation: 0,
+              foregroundColor: AppColors.textPrimary,
+              title: const Text('Edit Profile'),
+            )
+          : null,
       body: SafeArea(
         child: Form(
           key: _formKey,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
             children: [
-              Text(
-                'Set up your profile',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+              if (!_isEditing) ...[
+                Text(
+                  'Set up your profile',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Only your name is required — add more to personalize your experience.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 6),
+                Text(
+                  'Only your name is required — add more to personalize your experience.',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 24),
+              ],
               _buildTextField(
                 label: 'Full name',
                 controller: _fullNameController,
@@ -163,6 +207,16 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                       ? null
                       : 'Enter a valid email address';
                 },
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4, left: 4),
+                child: Text(
+                  "This is a contact detail on your profile — it's separate "
+                  "from the email you sign in with, which doesn't change here.",
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               _buildTextField(
@@ -246,7 +300,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Get Started'),
+                      : Text(_isEditing ? 'Save Changes' : 'Get Started'),
                 ),
               ),
             ],
