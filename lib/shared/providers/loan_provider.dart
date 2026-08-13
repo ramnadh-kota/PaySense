@@ -97,6 +97,13 @@ class LoanSummary {
 }
 
 class LoansNotifier extends AsyncNotifier<List<Loan>> {
+  /// Loan ids with a `markEmiPaid` call currently in flight. Guards against
+  /// a duplicate EMI expense transaction + double wallet deduction if the
+  /// action is triggered again (e.g. a rapid double-tap) before the first
+  /// call finishes — there's no confirmation dialog on this action, so this
+  /// is the only thing preventing that.
+  final Set<String> _pendingEmiPayments = {};
+
   @override
   Future<List<Loan>> build() async {
     final repository = ref.watch(loanRepositoryProvider);
@@ -155,46 +162,55 @@ class LoansNotifier extends AsyncNotifier<List<Loan>> {
   /// deducts the paying wallet, and advances the loan to its next due date
   /// (or closes it out if this was the final installment).
   Future<void> markEmiPaid(String id, {double? amount}) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard<List<Loan>>(() async {
-      final repository = ref.read(loanRepositoryProvider);
-      final loan = await repository.getById(id);
-      if (loan == null) {
-        return repository.getAll();
-      }
+    if (!_pendingEmiPayments.add(id)) {
+      // Already processing this loan's EMI payment — ignore the duplicate
+      // trigger instead of recording a second transaction.
+      return;
+    }
+    try {
+      state = const AsyncLoading();
+      state = await AsyncValue.guard<List<Loan>>(() async {
+        final repository = ref.read(loanRepositoryProvider);
+        final loan = await repository.getById(id);
+        if (loan == null) {
+          return repository.getAll();
+        }
 
-      final now = DateTime.now();
-      final paymentAmount = amount ?? loan.emiAmount;
-      final transactionRepository = ref.read(transactionRepositoryProvider);
-      final walletRepository = ref.read(walletRepositoryProvider);
+        final now = DateTime.now();
+        final paymentAmount = amount ?? loan.emiAmount;
+        final transactionRepository = ref.read(transactionRepositoryProvider);
+        final walletRepository = ref.read(walletRepositoryProvider);
 
-      await transactionRepository.add(
-        Transaction(
-          id: const Uuid().v4(),
-          title: '${loan.loanName} EMI',
-          amount: paymentAmount,
-          categoryId: loan.loanType,
-          accountId: loan.accountId,
-          transactionType: 'expense',
-          paymentMethod: 'loan_emi',
-          note: loan.lenderName,
-          createdAt: now,
-        ),
-      );
+        await transactionRepository.add(
+          Transaction(
+            id: const Uuid().v4(),
+            title: '${loan.loanName} EMI',
+            amount: paymentAmount,
+            categoryId: loan.loanType,
+            accountId: loan.accountId,
+            transactionType: 'expense',
+            paymentMethod: 'loan_emi',
+            note: loan.lenderName,
+            createdAt: now,
+          ),
+        );
 
-      final walletId = resolveLoanWalletId(loan.accountId);
-      await walletRepository.decreaseBalance(walletId, paymentAmount);
+        final walletId = resolveLoanWalletId(loan.accountId);
+        await walletRepository.decreaseBalance(walletId, paymentAmount);
 
-      final updated = loan.markEmiPaid(now, amount: paymentAmount);
-      await repository.update(updated);
+        final updated = loan.markEmiPaid(now, amount: paymentAmount);
+        await repository.update(updated);
 
-      ref.invalidate(transactionsProvider);
-      ref.invalidate(walletsProvider);
+        ref.invalidate(transactionsProvider);
+        ref.invalidate(walletsProvider);
 
-      final loans = await repository.getAll();
-      await _rescheduleReminders(loans);
-      return loans;
-    });
+        final loans = await repository.getAll();
+        await _rescheduleReminders(loans);
+        return loans;
+      });
+    } finally {
+      _pendingEmiPayments.remove(id);
+    }
   }
 
   Future<void> closeLoan(String id) async {

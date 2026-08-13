@@ -8,6 +8,7 @@ import 'package:paysense/shared/models/bill.dart';
 import 'package:paysense/shared/models/budget.dart';
 import 'package:paysense/shared/models/goal.dart';
 import 'package:paysense/shared/models/loan.dart';
+import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/models/user_profile.dart';
@@ -43,6 +44,9 @@ Future<void> _initHive(Directory dir) async {
   if (!Hive.isAdapterRegistered(7)) {
     Hive.registerAdapter(LoanAdapter());
   }
+  if (!Hive.isAdapterRegistered(9)) {
+    Hive.registerAdapter(AppNotificationAdapter());
+  }
 
   await Hive.openBox<UserProfile>('user_profile');
   await Hive.openBox<Wallet>('wallets');
@@ -52,6 +56,8 @@ Future<void> _initHive(Directory dir) async {
   await Hive.openBox<RecurringTransaction>('recurring_transactions');
   await Hive.openBox<Bill>('bills');
   await Hive.openBox<Loan>('loans');
+  await Hive.openBox('app_settings');
+  await Hive.openBox<AppNotification>('app_notifications');
 }
 
 void main() {

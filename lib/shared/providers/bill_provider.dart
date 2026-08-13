@@ -85,6 +85,13 @@ class BillTotals {
 }
 
 class BillsNotifier extends AsyncNotifier<List<Bill>> {
+  /// Bill ids with a `markPaid` call currently in flight. Guards against a
+  /// duplicate expense transaction + double wallet deduction if the action
+  /// is triggered again (e.g. a rapid double-tap) before the first call
+  /// finishes — there's no confirmation dialog on this action, so this is
+  /// the only thing preventing that.
+  final Set<String> _pendingMarkPaid = {};
+
   @override
   Future<List<Bill>> build() async {
     final repository = ref.watch(billRepositoryProvider);
@@ -143,45 +150,54 @@ class BillsNotifier extends AsyncNotifier<List<Bill>> {
   /// paying wallet, and (for recurring bills) rolls the bill forward to its
   /// next due date and reopens it as unpaid.
   Future<void> markPaid(String id) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard<List<Bill>>(() async {
-      final repository = ref.read(billRepositoryProvider);
-      final bill = await repository.getById(id);
-      if (bill == null) {
-        return repository.getAll();
-      }
+    if (!_pendingMarkPaid.add(id)) {
+      // Already processing this bill's payment — ignore the duplicate
+      // trigger instead of recording a second transaction.
+      return;
+    }
+    try {
+      state = const AsyncLoading();
+      state = await AsyncValue.guard<List<Bill>>(() async {
+        final repository = ref.read(billRepositoryProvider);
+        final bill = await repository.getById(id);
+        if (bill == null) {
+          return repository.getAll();
+        }
 
-      final now = DateTime.now();
-      final transactionRepository = ref.read(transactionRepositoryProvider);
-      final walletRepository = ref.read(walletRepositoryProvider);
+        final now = DateTime.now();
+        final transactionRepository = ref.read(transactionRepositoryProvider);
+        final walletRepository = ref.read(walletRepositoryProvider);
 
-      await transactionRepository.add(
-        Transaction(
-          id: const Uuid().v4(),
-          title: bill.title,
-          amount: bill.amount,
-          categoryId: bill.categoryId,
-          accountId: bill.accountId,
-          transactionType: 'expense',
-          paymentMethod: 'bill',
-          note: bill.note,
-          createdAt: now,
-        ),
-      );
+        await transactionRepository.add(
+          Transaction(
+            id: const Uuid().v4(),
+            title: bill.title,
+            amount: bill.amount,
+            categoryId: bill.categoryId,
+            accountId: bill.accountId,
+            transactionType: 'expense',
+            paymentMethod: 'bill',
+            note: bill.note,
+            createdAt: now,
+          ),
+        );
 
-      final walletId = resolveBillWalletId(bill.accountId);
-      await walletRepository.decreaseBalance(walletId, bill.amount);
+        final walletId = resolveBillWalletId(bill.accountId);
+        await walletRepository.decreaseBalance(walletId, bill.amount);
 
-      final updated = bill.markPaid(now);
-      await repository.update(updated);
+        final updated = bill.markPaid(now);
+        await repository.update(updated);
 
-      ref.invalidate(transactionsProvider);
-      ref.invalidate(walletsProvider);
+        ref.invalidate(transactionsProvider);
+        ref.invalidate(walletsProvider);
 
-      final bills = await repository.getAll();
-      await _rescheduleReminders(bills);
-      return bills;
-    });
+        final bills = await repository.getAll();
+        await _rescheduleReminders(bills);
+        return bills;
+      });
+    } finally {
+      _pendingMarkPaid.remove(id);
+    }
   }
 
   Future<void> markUnpaid(String id) async {
