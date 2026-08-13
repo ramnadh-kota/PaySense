@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/shared/models/goal.dart';
+import 'package:paysense/shared/models/notification_record.dart';
+import 'package:paysense/shared/providers/notification_provider.dart';
 import 'package:paysense/shared/repositories/goal_repository.dart';
 
 final goalRepositoryProvider = Provider<GoalRepository>((ref) {
@@ -64,12 +67,51 @@ class GoalsNotifier extends AsyncNotifier<List<Goal>> {
   }
 
   Future<void> updateGoal(Goal goal) async {
+    final repository = ref.read(goalRepositoryProvider);
+    final previous = await repository.getById(goal.id);
+
     state = const AsyncLoading();
     state = await AsyncValue.guard<List<Goal>>(() async {
-      final repository = ref.read(goalRepositoryProvider);
       await repository.update(goal);
-      return repository.getAll();
+      final goals = await repository.getAll();
+      await _maybeNotifyMilestone(previous, goal);
+      return goals;
     });
+  }
+
+  /// Records an in-app notification the first time a goal crosses the 50%
+  /// or 100% (completed) progress threshold. Deduped by a stable
+  /// per-goal-per-threshold id, so repeated small updates around the same
+  /// threshold never create duplicate history entries.
+  Future<void> _maybeNotifyMilestone(Goal? previous, Goal updated) async {
+    final previousProgress = previous?.progressPercentage ?? 0;
+    final newProgress = updated.progressPercentage;
+    final now = DateTime.now();
+
+    if (newProgress >= 100 && previousProgress < 100) {
+      await ref.read(notificationsProvider.notifier).addIfNotExists(
+        AppNotification(
+          id: 'goal:${updated.id}:milestone:100',
+          title: updated.title,
+          message: "🎉 You've completed your ${updated.title} goal!",
+          type: NotificationType.goal.name,
+          createdAt: now,
+          relatedRoute: AppRoutes.goals,
+        ),
+      );
+    } else if (newProgress >= 50 && previousProgress < 50) {
+      await ref.read(notificationsProvider.notifier).addIfNotExists(
+        AppNotification(
+          id: 'goal:${updated.id}:milestone:50',
+          title: updated.title,
+          message:
+              "You've reached 50% of your ${updated.title} savings goal.",
+          type: NotificationType.goal.name,
+          createdAt: now,
+          relatedRoute: AppRoutes.goals,
+        ),
+      );
+    }
   }
 
   Future<bool> deleteGoal(String id) async {

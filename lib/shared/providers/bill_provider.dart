@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/core/services/notification_service.dart';
 import 'package:paysense/shared/models/bill.dart';
+import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/providers/notification_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/app_settings_repository.dart';
@@ -199,6 +202,7 @@ class BillsNotifier extends AsyncNotifier<List<Bill>> {
 
   Future<void> _rescheduleReminders(List<Bill> bills) async {
     final remindersEnabled = AppSettingsRepository.instance.billRemindersEnabled();
+    final now = DateTime.now();
     for (final bill in bills) {
       if (bill.isPaid || !remindersEnabled) {
         await NotificationService.instance.cancelReminder(bill.id);
@@ -210,6 +214,22 @@ class BillsNotifier extends AsyncNotifier<List<Bill>> {
         body: '₹${bill.amount.toStringAsFixed(0)} due ${_formatDate(bill.dueDate)}',
         scheduledDate: bill.reminderDate,
       );
+
+      if (bill.isOverdue(now) || bill.isUpcoming(now)) {
+        final isOverdue = bill.isOverdue(now);
+        await ref.read(notificationsProvider.notifier).addIfNotExists(
+          AppNotification(
+            id: 'bill:${bill.id}:${bill.dueDate.toIso8601String()}',
+            title: bill.title,
+            message: isOverdue
+                ? 'Overdue — ₹${bill.amount.toStringAsFixed(0)} was due ${_formatDate(bill.dueDate)}'
+                : 'Due ${_formatDate(bill.dueDate)} — ₹${bill.amount.toStringAsFixed(0)}',
+            type: NotificationType.bill.name,
+            createdAt: now,
+            relatedRoute: AppRoutes.bills,
+          ),
+        );
+      }
     }
   }
 }

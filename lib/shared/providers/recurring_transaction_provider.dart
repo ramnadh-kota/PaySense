@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/core/services/notification_service.dart';
+import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/providers/notification_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/app_settings_repository.dart';
@@ -223,6 +226,8 @@ class RecurringTransactionsNotifier
   Future<void> _rescheduleReminders(List<RecurringTransaction> items) async {
     final remindersEnabled =
         AppSettingsRepository.instance.recurringRemindersEnabled();
+    final now = DateTime.now();
+    final horizon = now.add(const Duration(days: 7));
     for (final item in items) {
       if (!item.isActive || item.isExpired || !remindersEnabled) {
         await NotificationService.instance.cancelReminder(item.id);
@@ -236,6 +241,20 @@ class RecurringTransactionsNotifier
             '₹${item.amount.toStringAsFixed(0)} due ${_formatDate(item.nextDueDate)}',
         scheduledDate: item.reminderDate,
       );
+
+      if (!item.nextDueDate.isAfter(horizon)) {
+        await ref.read(notificationsProvider.notifier).addIfNotExists(
+          AppNotification(
+            id: 'recurring:${item.id}:${item.nextDueDate.toIso8601String()}',
+            title: item.title,
+            message:
+                '₹${item.amount.toStringAsFixed(0)} ${isIncome ? 'expected' : 'due'} ${_formatDate(item.nextDueDate)}',
+            type: NotificationType.recurringPayment.name,
+            createdAt: now,
+            relatedRoute: AppRoutes.recurring,
+          ),
+        );
+      }
     }
   }
 }

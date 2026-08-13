@@ -10,6 +10,7 @@ import '../../features/financial_health/presentation/financial_health_screen.dar
 import '../../features/goals/presentation/screens/goals_screen.dart';
 import '../../features/loans/presentation/screens/loans_screen.dart';
 import '../../features/navigation/navigation_screen.dart';
+import '../../features/notifications/presentation/notification_center_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/recurring/presentation/screens/recurring_screen.dart';
 import '../../features/profile/presentation/profile_setup_screen.dart';
@@ -69,6 +70,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const ChangePasswordScreen());
       case AppRoutes.appLockPinSetup:
         return MaterialPageRoute(builder: (_) => const AppLockPinSetupScreen());
+      case AppRoutes.notifications:
+        return MaterialPageRoute(builder: (_) => const NotificationCenterScreen());
       default:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
     }

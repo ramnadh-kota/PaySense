@@ -23,4 +23,5 @@ class AppRoutes {
   static const settings = '/settings';
   static const changePassword = '/change-password';
   static const appLockPinSetup = '/app-lock-pin-setup';
+  static const notifications = '/notifications';
 }

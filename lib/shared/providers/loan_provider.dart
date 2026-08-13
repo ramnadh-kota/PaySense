@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/core/services/notification_service.dart';
 import 'package:paysense/shared/models/loan.dart';
+import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/providers/notification_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/app_settings_repository.dart';
@@ -211,6 +214,7 @@ class LoansNotifier extends AsyncNotifier<List<Loan>> {
 
   Future<void> _rescheduleReminders(List<Loan> loans) async {
     final remindersEnabled = AppSettingsRepository.instance.loanRemindersEnabled();
+    final now = DateTime.now();
     for (final loan in loans) {
       if (!loan.isActive || !remindersEnabled) {
         await _cancelReminders(loan.id);
@@ -238,6 +242,22 @@ class LoansNotifier extends AsyncNotifier<List<Loan>> {
         body: '$amountText was due ${_formatDate(dueDate)}',
         scheduledDate: dueDate.add(const Duration(days: 1)),
       );
+
+      if (loan.isOverdue(now) || loan.isUpcoming(now)) {
+        final isOverdue = loan.isOverdue(now);
+        await ref.read(notificationsProvider.notifier).addIfNotExists(
+          AppNotification(
+            id: 'loan:${loan.id}:${dueDate.toIso8601String()}',
+            title: loan.loanName,
+            message: isOverdue
+                ? 'EMI overdue — $amountText was due ${_formatDate(dueDate)}'
+                : 'EMI due ${_formatDate(dueDate)} — $amountText',
+            type: NotificationType.loanPayment.name,
+            createdAt: now,
+            relatedRoute: AppRoutes.loans,
+          ),
+        );
+      }
     }
   }
 

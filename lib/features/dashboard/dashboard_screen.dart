@@ -3,16 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/bill.dart';
+import 'package:paysense/shared/models/goal.dart';
+import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/bill_provider.dart';
 import 'package:paysense/shared/providers/budget_provider.dart';
+import 'package:paysense/shared/providers/financial_health_provider.dart';
 import 'package:paysense/shared/providers/goal_provider.dart';
 import 'package:paysense/shared/providers/loan_provider.dart';
+import 'package:paysense/shared/providers/notification_provider.dart';
 import 'package:paysense/shared/providers/recurring_transaction_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/utils/currency_formatter.dart';
+import 'package:paysense/shared/utils/dashboard_helpers.dart';
+import 'package:paysense/shared/utils/financial_health_calculator.dart'
+    show FinancialHealthResult, FinancialInsight, FinancialInsightType;
 import 'package:paysense/shared/widgets/app_card.dart';
 import '../../core/routes/app_routes.dart';
 import '../transactions/presentation/add_expense_screen.dart';
@@ -33,12 +40,18 @@ class DashboardScreen extends ConsumerWidget {
     final budgetsAsync = ref.watch(budgetsProvider);
     final budgetTotals = ref.watch(budgetTotalsProvider);
     final goalsAsync = ref.watch(goalsProvider);
-    final goalTotals = ref.watch(goalTotalsProvider);
     final upcomingPayments = ref.watch(upcomingPaymentsProvider);
     final upcomingBills = ref.watch(upcomingBillsProvider);
     final loanSummary = ref.watch(loanSummaryProvider);
+    final financialHealth = ref.watch(financialHealthProvider);
+    ref.listen<FinancialHealthResult>(financialHealthProvider, (
+      previous,
+      next,
+    ) {
+      _maybeRecordFinancialHealthNotification(ref, next);
+    });
     final profileAsync = ref.watch(userProfileProvider);
-    final greeting = _greetingFor(now, profileAsync.value?.fullName ?? '');
+    final greeting = greetingFor(now, profileAsync.value?.fullName ?? '');
     final currencyCode = profileAsync.value?.currency.isNotEmpty == true
         ? profileAsync.value!.currency
         : 'INR';
@@ -64,11 +77,15 @@ class DashboardScreen extends ConsumerWidget {
               transactions: transactions,
               hasBudgets: (budgetsAsync.value ?? const []).isNotEmpty,
               budgetTotals: budgetTotals,
-              hasGoals: (goalsAsync.value ?? const []).isNotEmpty,
-              goalTotals: goalTotals,
+              goals: goalsAsync.value ?? const [],
               upcomingPayments: upcomingPayments,
               upcomingBills: upcomingBills,
               loanSummary: loanSummary,
+              financialHealthInsight: financialHealth.hasSufficientData &&
+                      financialHealth.insights.isNotEmpty
+                  ? financialHealth.insights.first
+                  : null,
+              now: now,
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -100,16 +117,25 @@ class DashboardScreen extends ConsumerWidget {
     required _DashboardTotals totals,
     required bool hasBudgets,
     required BudgetTotals budgetTotals,
-    required bool hasGoals,
-    required GoalTotals goalTotals,
+    required List<Goal> goals,
     required List<RecurringTransaction> upcomingPayments,
     required List<Bill> upcomingBills,
     required LoanSummary loanSummary,
+    required FinancialInsight? financialHealthInsight,
+    required DateTime now,
     List<Transaction> transactions = const <Transaction>[],
   }) {
     final recentTransactions = transactions.toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final latestTransactions = recentTransactions.take(5).toList();
+    final todaysMoney = computeTodaysMoney(transactions, now);
+    final relevantGoal = selectRelevantGoal(goals);
+    final upcomingAttention = selectUpcomingAttention(
+      upcomingBills: upcomingBills,
+      upcomingPayments: upcomingPayments,
+      loanSummary: loanSummary,
+      now: now,
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -141,6 +167,8 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
+              const _NotificationBell(),
               const SizedBox(width: 12),
               CircleAvatar(
                 radius: 24,
@@ -251,6 +279,51 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 24),
+          Text(
+            "Today's Money",
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          AppCard(
+            padding: const EdgeInsets.all(20),
+            child: !todaysMoney.hasActivity
+                ? Text(
+                    'No activity today',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _TodayStat(
+                          label: 'Spent',
+                          value: currencyFormatter.format(todaysMoney.spent),
+                          color: AppColors.danger,
+                        ),
+                      ),
+                      Expanded(
+                        child: _TodayStat(
+                          label: 'Income',
+                          value: currencyFormatter.format(todaysMoney.income),
+                          color: AppColors.success,
+                        ),
+                      ),
+                      Expanded(
+                        child: _TodayStat(
+                          label: 'Net',
+                          value:
+                              '${todaysMoney.net >= 0 ? '+' : ''}${currencyFormatter.format(todaysMoney.net)}',
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+          const SizedBox(height: 24),
           const FinancialHealthCard(),
           const SizedBox(height: 24),
           Row(
@@ -274,8 +347,9 @@ class DashboardScreen extends ConsumerWidget {
           if (!hasBudgets)
             AppCard(
               padding: const EdgeInsets.all(20),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.budget),
               child: Text(
-                'No budgets yet. Create one to track spending by category.',
+                'Set a monthly budget to track your spending.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -284,47 +358,67 @@ class DashboardScreen extends ConsumerWidget {
           else
             AppCard(
               padding: const EdgeInsets.all(20),
-              child: Row(
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.budget),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total: ${currencyFormatter.format(budgetTotals.totalBudget)}',
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${currencyFormatter.format(budgetTotals.totalSpent)} / ${currencyFormatter.format(budgetTotals.totalBudget)}',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.textPrimary,
                               ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Spent: ${currencyFormatter.format(budgetTotals.totalSpent)} · Remaining: ${currencyFormatter.format(budgetTotals.remainingBudget)}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppColors.textSecondary),
+                      ),
+                      Text(
+                        '${budgetTotals.percentageUsed.toStringAsFixed(0)}%',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
                         ),
-                        if (budgetTotals.highestSpendingCategory.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Highest spend: ${budgetTotals.highestSpendingCategory}',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: (budgetTotals.percentageUsed / 100).clamp(0.0, 1.0),
+                      minHeight: 8,
+                      backgroundColor: AppColors.background,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        budgetTotals.percentageUsed > 100
+                            ? AppColors.danger
+                            : AppColors.primary,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 8),
                   Text(
-                    '${budgetTotals.percentageUsed.toStringAsFixed(0)}%',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                    'Remaining: ${currencyFormatter.format(budgetTotals.remainingBudget)}',
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
                   ),
                 ],
               ),
             ),
+          const SizedBox(height: 24),
+          Text(
+            'Upcoming Attention',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _UpcomingAttentionCard(
+            item: upcomingAttention,
+            currencyFormatter: currencyFormatter,
+          ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -344,12 +438,12 @@ class DashboardScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          if (!hasGoals)
+          if (relevantGoal == null)
             AppCard(
               padding: const EdgeInsets.all(20),
               onTap: () => Navigator.of(context).pushNamed(AppRoutes.goals),
               child: Text(
-                'No savings goals yet. Create one to start tracking progress.',
+                'Create your first savings goal.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -359,42 +453,38 @@ class DashboardScreen extends ConsumerWidget {
             AppCard(
               padding: const EdgeInsets.all(20),
               onTap: () => Navigator.of(context).pushNamed(AppRoutes.goals),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${goalTotals.totalGoals} goal${goalTotals.totalGoals == 1 ? '' : 's'} · Target: ${currencyFormatter.format(goalTotals.totalTarget)}',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Saved: ${currencyFormatter.format(goalTotals.totalSaved)} · Remaining: ${currencyFormatter.format(goalTotals.totalRemaining)}',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: AppColors.textSecondary),
-                        ),
-                        if (goalTotals.closestGoal.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Closest goal: ${goalTotals.closestGoal}',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ],
+                  Text(
+                    '🎯 ${relevantGoal.title}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
-                    goalTotals.totalTarget > 0
-                        ? '${(goalTotals.totalSaved / goalTotals.totalTarget * 100).clamp(0.0, 100.0).toStringAsFixed(0)}%'
-                        : '0%',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    '${currencyFormatter.format(relevantGoal.currentAmount)} / ${currencyFormatter.format(relevantGoal.targetAmount)}',
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: (relevantGoal.progressPercentage / 100).clamp(0.0, 1.0),
+                      minHeight: 8,
+                      backgroundColor: AppColors.background,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${relevantGoal.progressPercentage.clamp(0, 100).toStringAsFixed(0)}%',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppColors.primary,
                     ),
@@ -682,73 +772,14 @@ class DashboardScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 24),
           Text(
-            'Quick Actions',
+            'Smart Insight',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: QuickActionButton(
-                  icon: Icons.add_circle_outline,
-                  label: 'Add income',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AddIncomeScreen()),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: QuickActionButton(
-                  icon: Icons.remove_circle_outline,
-                  label: 'Add expense',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: QuickActionButton(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'Budget',
-                  onTap: () =>
-                      Navigator.of(context).pushNamed(AppRoutes.budget),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          AppCard(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    'You spent 18% less than last week. Great job!',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 8),
+          _SmartInsightCard(insight: financialHealthInsight),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -799,6 +830,58 @@ class DashboardScreen extends ConsumerWidget {
                     }).toList(),
                   ),
           ),
+          const SizedBox(height: 24),
+          Text(
+            'Quick Actions',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: QuickActionButton(
+                  icon: Icons.remove_circle_outline,
+                  label: 'Add expense',
+                  color: AppColors.accent,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: QuickActionButton(
+                  icon: Icons.add_circle_outline,
+                  label: 'Add income',
+                  color: AppColors.accent,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddIncomeScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: QuickActionButton(
+                  icon: Icons.flag_outlined,
+                  label: 'Add goal',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.goals),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: QuickActionButton(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'Add budget',
+                  onTap: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.budget),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -837,19 +920,36 @@ _DashboardTotals _calculateTotals(List<Transaction> transactions) {
   );
 }
 
-String _greetingFor(DateTime now, String fullName) {
-  final timeOfDay = now.hour < 12
-      ? 'Morning'
-      : now.hour < 17
-      ? 'Afternoon'
-      : 'Evening';
-  final firstName = fullName.trim().isEmpty
-      ? 'there'
-      : fullName.trim().split(' ').first;
-  return 'Good $timeOfDay, $firstName 👋';
-}
-
 String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
+
+/// Records the top Financial Health insight as an in-app notification, but
+/// only when it's a warning (overdue bills, high EMI burden, etc.) — the
+/// "meaningful new insight" case worth surfacing as a notification, not
+/// every routine positive/tip message. Deduped by message content, so this
+/// firing again with the same insight (e.g. on every Dashboard rebuild) is
+/// always a no-op.
+void _maybeRecordFinancialHealthNotification(
+  WidgetRef ref,
+  FinancialHealthResult health,
+) {
+  if (!health.hasSufficientData || health.insights.isEmpty) {
+    return;
+  }
+  final topInsight = health.insights.first;
+  if (topInsight.type != FinancialInsightType.warning) {
+    return;
+  }
+  ref.read(notificationsProvider.notifier).addIfNotExists(
+    AppNotification(
+      id: 'financialHealth:${topInsight.message.hashCode}',
+      title: 'Financial Health',
+      message: topInsight.message,
+      type: NotificationType.financialHealth.name,
+      createdAt: DateTime.now(),
+      relatedRoute: AppRoutes.financialHealth,
+    ),
+  );
+}
 
 String _formatAmount(double amount, String transactionType, String currencyCode) {
   final sign = transactionType.toLowerCase() == 'income' ? '+' : '-';
@@ -862,6 +962,255 @@ IconData _iconForTransactionType(String transactionType) {
     return Icons.account_balance_rounded;
   }
   return Icons.shopping_bag_rounded;
+}
+
+class _NotificationBell extends ConsumerWidget {
+  const _NotificationBell();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNotificationCountProvider);
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        CircleAvatar(
+          radius: 24,
+          backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+          child: IconButton(
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: AppColors.primary,
+            ),
+            onPressed: () =>
+                Navigator.of(context).pushNamed(AppRoutes.notifications),
+          ),
+        ),
+        if (unreadCount > 0)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              decoration: const BoxDecoration(
+                color: AppColors.accent,
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                unreadCount > 9 ? '9+' : '$unreadCount',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SmartInsightCard extends StatelessWidget {
+  const _SmartInsightCard({required this.insight});
+
+  final FinancialInsight? insight;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = insight;
+    if (current == null) {
+      return AppCard(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(Icons.auto_awesome_rounded, color: AppColors.primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'Keep tracking your spending to unlock personalized insights.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final color = switch (current.type) {
+      FinancialInsightType.positive => AppColors.success,
+      FinancialInsightType.tip => AppColors.primary,
+      FinancialInsightType.warning => AppColors.accent,
+    };
+    final icon = switch (current.type) {
+      FinancialInsightType.positive => Icons.emoji_events_rounded,
+      FinancialInsightType.tip => Icons.lightbulb_outline_rounded,
+      FinancialInsightType.warning => Icons.warning_amber_rounded,
+    };
+    final background = switch (current.type) {
+      FinancialInsightType.warning => AppColors.softCoral,
+      _ => AppColors.lightTeal,
+    };
+
+    return AppCard(
+      padding: const EdgeInsets.all(20),
+      color: background,
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              current.message,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpcomingAttentionCard extends StatelessWidget {
+  const _UpcomingAttentionCard({
+    required this.item,
+    required this.currencyFormatter,
+  });
+
+  final UpcomingAttentionItem? item;
+  final NumberFormat currencyFormatter;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = item;
+    if (current == null) {
+      return AppCard(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(Icons.celebration_rounded, color: AppColors.success),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "You're all caught up 🎉",
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final isOverdue = current.type == UpcomingAttentionType.overdueBill;
+    final color = isOverdue ? AppColors.danger : AppColors.primary;
+    final IconData icon;
+    final String statusText;
+    final String targetRoute;
+    switch (current.type) {
+      case UpcomingAttentionType.overdueBill:
+        icon = Icons.warning_amber_rounded;
+        statusText = 'Overdue';
+        targetRoute = AppRoutes.bills;
+      case UpcomingAttentionType.dueSoonBill:
+        icon = Icons.receipt_long_rounded;
+        statusText = 'Due ${_formatDate(current.dueDate)}';
+        targetRoute = AppRoutes.bills;
+      case UpcomingAttentionType.recurringPayment:
+        icon = Icons.autorenew_rounded;
+        statusText = 'Due ${_formatDate(current.dueDate)}';
+        targetRoute = AppRoutes.recurring;
+      case UpcomingAttentionType.loanEmi:
+        icon = Icons.account_balance_rounded;
+        statusText = 'EMI due ${_formatDate(current.dueDate)}';
+        targetRoute = AppRoutes.loans;
+    }
+
+    return AppCard(
+      padding: const EdgeInsets.all(20),
+      onTap: () => Navigator.of(context).pushNamed(targetRoute),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  current.title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  statusText,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: color),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            currencyFormatter.format(current.amount),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayStat extends StatelessWidget {
+  const _TodayStat({required this.label, required this.value, required this.color});
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _InfoPill extends StatelessWidget {
