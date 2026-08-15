@@ -12,6 +12,7 @@ class Wallet {
     required this.openingBalance,
     required this.currentBalance,
     required this.createdAt,
+    this.isArchived = false,
   });
   @HiveField(0)
   final String id;
@@ -28,6 +29,12 @@ class Wallet {
   @HiveField(6)
   final DateTime createdAt;
 
+  /// Hidden from the main wallet list once true. Never hard-deleted:
+  /// historical transactions/transfers referencing this wallet's id remain
+  /// intact and resolvable.
+  @HiveField(7, defaultValue: false)
+  final bool isArchived;
+
   Wallet copyWith({
     String? id,
     String? name,
@@ -36,6 +43,7 @@ class Wallet {
     double? openingBalance,
     double? currentBalance,
     DateTime? createdAt,
+    bool? isArchived,
   }) {
     return Wallet(
       id: id ?? this.id,
@@ -45,6 +53,7 @@ class Wallet {
       openingBalance: openingBalance ?? this.openingBalance,
       currentBalance: currentBalance ?? this.currentBalance,
       createdAt: createdAt ?? this.createdAt,
+      isArchived: isArchived ?? this.isArchived,
     );
   }
 
@@ -57,6 +66,7 @@ class Wallet {
       'openingBalance': openingBalance,
       'currentBalance': currentBalance,
       'createdAt': createdAt.toIso8601String(),
+      'isArchived': isArchived,
     };
   }
 
@@ -69,6 +79,7 @@ class Wallet {
       openingBalance: (map['openingBalance'] as num).toDouble(),
       currentBalance: (map['currentBalance'] as num).toDouble(),
       createdAt: DateTime.parse(map['createdAt'] as String),
+      isArchived: map['isArchived'] as bool? ?? false,
     );
   }
 }

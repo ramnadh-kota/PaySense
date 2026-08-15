@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/transaction.dart';
+import '../models/wallet.dart';
 import '../utils/transaction_filters.dart';
 import 'transaction_provider.dart';
 import 'wallet_provider.dart';
@@ -83,11 +84,13 @@ final availableTransactionCategoriesProvider = Provider<List<String>>((ref) {
   return categories;
 });
 
-/// Wallet names, sourced from the existing wallets list rather than
-/// hardcoded, for the Account filter.
-final availableTransactionAccountsProvider = Provider<List<String>>((ref) {
-  final wallets = ref.watch(walletsProvider).value ?? const [];
-  final names = wallets.map((w) => w.name).where((n) => n.isNotEmpty).toSet().toList()
-    ..sort();
-  return names;
+/// Real, non-archived wallets for the Account filter. `TransactionFilters
+/// .account` stores a wallet's real id (matching how `Transaction.accountId`
+/// is stored — see `wallet_account_resolver.dart`), never its display name,
+/// so filtering by account actually matches transactions correctly.
+final availableTransactionAccountsProvider = Provider<List<Wallet>>((ref) {
+  final wallets = ref.watch(walletsProvider).value ?? const <Wallet>[];
+  final active = wallets.where((w) => !w.isArchived).toList()
+    ..sort((a, b) => a.name.compareTo(b.name));
+  return active;
 });

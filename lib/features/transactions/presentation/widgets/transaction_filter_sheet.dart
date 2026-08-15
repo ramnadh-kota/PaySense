@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/providers/transaction_filter_provider.dart';
 import 'package:paysense/shared/utils/transaction_filters.dart';
+import 'package:paysense/shared/models/wallet.dart';
 
 /// Staged filter editor: changes only take effect on "Apply filters" (or are
 /// discarded immediately by "Clear all"), so the transaction list doesn't
@@ -221,11 +222,11 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
                       children: [
                         _choiceChip('All', _account == null,
                             () => setState(() => _account = null)),
-                        for (final account in accounts)
+                        for (final Wallet wallet in accounts)
                           _choiceChip(
-                            account,
-                            _account == account,
-                            () => setState(() => _account = account),
+                            wallet.name,
+                            _account == wallet.id,
+                            () => setState(() => _account = wallet.id),
                           ),
                       ],
                     ),

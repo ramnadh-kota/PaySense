@@ -10,6 +10,7 @@ import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/app_settings_repository.dart';
 import 'package:paysense/shared/repositories/bill_repository.dart';
+import 'package:paysense/shared/utils/wallet_account_resolver.dart';
 
 final billRepositoryProvider = Provider<BillRepository>((ref) {
   return BillRepository.instance;
@@ -168,13 +169,22 @@ class BillsNotifier extends AsyncNotifier<List<Bill>> {
         final transactionRepository = ref.read(transactionRepositoryProvider);
         final walletRepository = ref.read(walletRepositoryProvider);
 
+        // Resolve to a real Wallet.id — never store bill.accountId's raw
+        // display label on the ledger record. Falls back to the legacy
+        // synthetic mapping only for old bills whose accountId can't be
+        // matched to any real wallet.
+        final wallets = await walletRepository.getAll();
+        final walletId =
+            resolveWalletIdForAccount(bill.accountId, wallets) ??
+            resolveBillWalletId(bill.accountId);
+
         await transactionRepository.add(
           Transaction(
             id: const Uuid().v4(),
             title: bill.title,
             amount: bill.amount,
             categoryId: bill.categoryId,
-            accountId: bill.accountId,
+            accountId: walletId,
             transactionType: 'expense',
             paymentMethod: 'bill',
             note: bill.note,
@@ -182,7 +192,6 @@ class BillsNotifier extends AsyncNotifier<List<Bill>> {
           ),
         );
 
-        final walletId = resolveBillWalletId(bill.accountId);
         await walletRepository.decreaseBalance(walletId, bill.amount);
 
         final updated = bill.markPaid(now);

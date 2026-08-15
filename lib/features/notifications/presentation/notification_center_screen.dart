@@ -218,6 +218,12 @@ _NotificationStyle _styleFor(NotificationType type) {
         color: AppColors.accent,
         background: AppColors.softCoral,
       );
+    case NotificationType.smsTransaction:
+      return const _NotificationStyle(
+        icon: Icons.sms_rounded,
+        color: AppColors.primary,
+        background: AppColors.lightTeal,
+      );
     case NotificationType.general:
       return const _NotificationStyle(
         icon: Icons.notifications_rounded,

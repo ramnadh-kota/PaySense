@@ -22,6 +22,9 @@ class AppSettingsRepository {
   static const String _appLockTimeoutKey = 'appLockTimeout';
   static const String _appLockPinHashKey = 'appLockPinHash';
   static const String _appLockPinSaltKey = 'appLockPinSalt';
+  static const String _walletTransactionAccountMigrationV1Key =
+      'walletTransactionAccountMigrationV1';
+  static const String _smsAutomationEnabledKey = 'smsAutomationEnabled';
 
   Box get _box => Hive.box(_boxName);
 
@@ -34,12 +37,26 @@ class AppSettingsRepository {
     await _box.put(_isFirstLaunchKey, false);
   }
 
+  /// Whether the one-time `Transaction.accountId` legacy-label-to-wallet-id
+  /// migration (see `TransactionAccountMigration`) has already completed —
+  /// purely an optimization to skip re-scanning every transaction on every
+  /// app start once there's nothing left to do; the migration itself is
+  /// idempotent even without this flag.
+  Future<bool> isWalletTransactionAccountMigrationV1Complete() async {
+    return (_box.get(_walletTransactionAccountMigrationV1Key) as bool?) ?? false;
+  }
+
+  Future<void> completeWalletTransactionAccountMigrationV1() async {
+    await _box.put(_walletTransactionAccountMigrationV1Key, true);
+  }
+
   Future<AppSettings> getSettings() async {
     return AppSettings(
       themeMode: _themeModeFromKey(_box.get(_themeModeKey) as String?),
       billReminders: (_box.get(_billRemindersKey) as bool?) ?? true,
       recurringReminders: (_box.get(_recurringRemindersKey) as bool?) ?? true,
       loanReminders: (_box.get(_loanRemindersKey) as bool?) ?? true,
+      smsAutomationEnabled: (_box.get(_smsAutomationEnabledKey) as bool?) ?? false,
     );
   }
 
@@ -59,6 +76,10 @@ class AppSettingsRepository {
     await _box.put(_loanRemindersKey, enabled);
   }
 
+  Future<void> setSmsAutomationEnabled(bool enabled) async {
+    await _box.put(_smsAutomationEnabledKey, enabled);
+  }
+
   /// Synchronous reads used by non-UI call sites (notification scheduling)
   /// that only need a single flag and shouldn't await a full settings load.
   bool billRemindersEnabled() => (_box.get(_billRemindersKey) as bool?) ?? true;
@@ -67,6 +88,12 @@ class AppSettingsRepository {
       (_box.get(_recurringRemindersKey) as bool?) ?? true;
 
   bool loanRemindersEnabled() => (_box.get(_loanRemindersKey) as bool?) ?? true;
+
+  /// Synchronous read used by the SMS processor, which runs outside a
+  /// normal widget build cycle (app startup, receiver-triggered flush) and
+  /// shouldn't await a full settings load just to check one flag.
+  bool smsAutomationEnabled() =>
+      (_box.get(_smsAutomationEnabledKey) as bool?) ?? false;
 
   AppThemeMode _themeModeFromKey(String? key) {
     switch (key) {

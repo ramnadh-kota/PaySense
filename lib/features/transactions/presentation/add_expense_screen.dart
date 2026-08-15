@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
 import 'package:paysense/shared/widgets/decision_coach_dialog.dart';
+import 'package:paysense/shared/widgets/wallet_selector_field.dart';
 import 'package:uuid/uuid.dart';
 
 /// A premium, fast-entry expense capture screen.
@@ -22,7 +24,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   final _noteController = TextEditingController();
 
   String? _selectedCategory;
-  String? _selectedAccount;
+  String? _selectedWalletId;
 
   final List<String> _categories = const <String>[
     'Groceries',
@@ -32,13 +34,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     'Bills',
   ];
 
-  final List<String> _accounts = const <String>[
-    'Checking',
-    'Savings',
-    'Credit Card',
-    'Cash',
-  ];
-
   @override
   void dispose() {
     _amountController.dispose();
@@ -46,7 +41,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     super.dispose();
   }
 
-  Future<void> _handleSave() async {
+  Future<void> _handleSave(List<Wallet> wallets) async {
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
       ScaffoldMessenger.of(
@@ -60,6 +55,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid amount.')),
       );
+      return;
+    }
+
+    final walletId = _selectedWalletId;
+    if (walletId == null || wallets.every((w) => w.id != walletId)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please choose an account.')));
       return;
     }
 
@@ -85,7 +88,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       title: _selectedCategory ?? 'Expense',
       amount: amount,
       categoryId: _selectedCategory ?? 'uncategorized',
-      accountId: _selectedAccount ?? 'default',
+      // The real Wallet.id, never a display label — see
+      // wallet_account_resolver.dart for why this matters.
+      accountId: walletId,
       transactionType: 'expense',
       paymentMethod: 'card',
       note: _noteController.text.trim(),
@@ -93,8 +98,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
 
     await TransactionRepository.instance.add(transaction);
-
-    final walletId = _resolveWalletId(_selectedAccount);
     await WalletRepository.instance.decreaseBalance(walletId, amount);
     await ref.read(walletsProvider.notifier).reload();
     await ref.read(transactionsProvider.notifier).reload();
@@ -105,20 +108,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     Navigator.of(context).pop();
   }
 
-  String _resolveWalletId(String? account) {
-    switch (account) {
-      case 'Cash':
-        return 'wallet-cash';
-      case 'Checking':
-      case 'Savings':
-      case 'Credit Card':
-      default:
-        return 'wallet-hdfc-salary';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final walletsAsync = ref.watch(walletsProvider);
+    final wallets = (walletsAsync.value ?? const <Wallet>[])
+        .where((w) => !w.isArchived)
+        .toList();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -210,17 +206,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              _buildDropdownField(
-                context: context,
-                label: 'Account',
-                value: _selectedAccount,
-                items: _accounts,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedAccount = value;
-                  });
-                },
-              ),
+              if (wallets.isEmpty)
+                const NoWalletsMessage(
+                  message: 'Add an account first to record where this expense comes from.',
+                )
+              else
+                WalletSelectorField(
+                  wallets: wallets,
+                  selectedWalletId: _selectedWalletId,
+                  onChanged: (value) => setState(() => _selectedWalletId = value),
+                ),
               const SizedBox(height: 12),
               TextField(
                 controller: _noteController,
@@ -241,7 +236,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _handleSave,
+                  onPressed: () => _handleSave(wallets),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,

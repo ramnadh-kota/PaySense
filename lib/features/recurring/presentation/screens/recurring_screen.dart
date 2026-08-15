@@ -5,7 +5,9 @@ import 'package:paysense/features/recurring/presentation/widgets/recurring_summa
 import 'package:paysense/features/recurring/presentation/widgets/recurring_transaction_card.dart';
 import 'package:paysense/features/recurring/presentation/widgets/recurring_transaction_form_sheet.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
+import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/providers/recurring_transaction_provider.dart';
+import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
 class RecurringScreen extends ConsumerWidget {
@@ -131,6 +133,9 @@ class RecurringScreen extends ConsumerWidget {
     WidgetRef ref, {
     RecurringTransaction? item,
   }) async {
+    final allWallets = ref.read(walletsProvider).value ?? const <Wallet>[];
+    final wallets = allWallets.where((w) => !w.isArchived || w.id == item?.accountId).toList();
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -138,6 +143,7 @@ class RecurringScreen extends ConsumerWidget {
       builder: (context) {
         return RecurringTransactionFormSheet(
           item: item,
+          wallets: wallets,
           onSave: (updated) async {
             if (item == null) {
               await ref

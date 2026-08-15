@@ -35,6 +35,20 @@ class WalletRepository {
     return wallet;
   }
 
+  /// Hides a wallet from the main list without deleting it or any of its
+  /// historical transactions/transfers. Prefer this over [delete] for any
+  /// wallet that has ever been used — deleting would break references from
+  /// existing `Transaction.accountId`/`transferCounterpartyWalletId` values.
+  Future<Wallet?> archive(String id) async {
+    final wallet = _box.get(id);
+    if (wallet == null) {
+      return null;
+    }
+    final archived = wallet.copyWith(isArchived: true);
+    await _box.put(id, archived);
+    return archived;
+  }
+
   Future<bool> delete(String id) async {
     if (!_box.containsKey(id)) {
       return false;

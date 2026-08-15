@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/bill.dart';
+import 'package:paysense/shared/models/wallet.dart';
+import 'package:paysense/shared/utils/wallet_account_resolver.dart';
+import 'package:paysense/shared/widgets/wallet_selector_field.dart';
 
 const List<String> _frequencies = <String>['Weekly', 'Monthly', 'Yearly'];
-const List<String> _accounts = <String>['Checking', 'Savings', 'Credit Card', 'Cash'];
 
 class BillFormSheet extends StatefulWidget {
-  const BillFormSheet({super.key, this.bill, required this.onSave});
+  const BillFormSheet({super.key, this.bill, required this.wallets, required this.onSave});
 
   final Bill? bill;
+
+  /// Non-archived wallets, plus the bill's currently-associated wallet if it
+  /// happens to be archived (so editing an old bill never silently loses
+  /// its existing, still-valid selection).
+  final List<Wallet> wallets;
   final Future<void> Function(Bill bill) onSave;
 
   @override
@@ -24,10 +31,14 @@ class _BillFormSheetState extends State<BillFormSheet> {
   final _noteController = TextEditingController();
   final _reminderController = TextEditingController(text: '2');
 
-  String _account = _accounts.first;
+  /// The real Wallet.id this bill is paid from — never a display label.
+  /// Null means "no wallet resolved/selected yet"; the form refuses to save
+  /// until the user picks one (see [_handleSave]).
+  String? _selectedWalletId;
   String _frequency = 'Monthly';
   bool _isRecurring = false;
   late DateTime _dueDate;
+  String? _walletError;
 
   @override
   void initState() {
@@ -39,9 +50,11 @@ class _BillFormSheetState extends State<BillFormSheet> {
       _categoryController.text = bill.categoryId;
       _noteController.text = bill.note;
       _reminderController.text = bill.reminderDaysBefore.toString();
-      _account = _accounts.contains(bill.accountId)
-          ? bill.accountId
-          : _accounts.first;
+      // Never guess: resolves to a wallet only when the existing accountId
+      // already is one, or unambiguously identifies exactly one wallet by
+      // name/type. Ambiguous or unmatched legacy data leaves this null,
+      // requiring the user to explicitly choose before saving.
+      _selectedWalletId = resolveWalletIdForAccount(bill.accountId, widget.wallets);
       _frequency = _frequencies.contains(bill.frequency)
           ? bill.frequency
           : _frequencies[1];
@@ -49,6 +62,7 @@ class _BillFormSheetState extends State<BillFormSheet> {
       _dueDate = bill.dueDate;
     } else {
       _dueDate = DateTime.now().add(const Duration(days: 7));
+      _selectedWalletId = widget.wallets.isEmpty ? null : widget.wallets.first.id;
     }
   }
 
@@ -84,6 +98,13 @@ class _BillFormSheetState extends State<BillFormSheet> {
       return;
     }
 
+    final walletId = _selectedWalletId;
+    if (walletId == null || widget.wallets.every((w) => w.id != walletId)) {
+      setState(() => _walletError = 'Please choose a payment account.');
+      return;
+    }
+    setState(() => _walletError = null);
+
     final reminderDaysBefore =
         int.tryParse(_reminderController.text.trim()) ?? 2;
 
@@ -96,7 +117,8 @@ class _BillFormSheetState extends State<BillFormSheet> {
             title: _titleController.text.trim(),
             amount: amount,
             categoryId: _categoryController.text.trim(),
-            accountId: _account,
+            // The real Wallet.id, never a display label.
+            accountId: walletId,
             dueDate: _dueDate,
             isRecurring: _isRecurring,
             frequency: _frequency,
@@ -108,7 +130,7 @@ class _BillFormSheetState extends State<BillFormSheet> {
             title: _titleController.text.trim(),
             amount: amount,
             categoryId: _categoryController.text.trim(),
-            accountId: _account,
+            accountId: walletId,
             dueDate: _dueDate,
             isRecurring: _isRecurring,
             frequency: _frequency,
@@ -178,12 +200,31 @@ class _BillFormSheetState extends State<BillFormSheet> {
                       value?.trim().isEmpty == true ? 'Enter a category' : null,
                 ),
                 const SizedBox(height: 12),
-                _buildDropdown(
-                  label: 'Account',
-                  value: _account,
-                  items: _accounts,
-                  onChanged: (value) => setState(() => _account = value!),
-                ),
+                if (widget.wallets.isEmpty)
+                  const NoWalletsMessage(
+                    message: 'Add an account first to choose where this bill is paid from.',
+                  )
+                else ...[
+                  WalletSelectorField(
+                    label: 'Payment account',
+                    wallets: widget.wallets,
+                    selectedWalletId: _selectedWalletId,
+                    onChanged: (value) => setState(() {
+                      _selectedWalletId = value;
+                      _walletError = null;
+                    }),
+                  ),
+                  if (_walletError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        _walletError!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.danger,
+                        ),
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 12),
                 _buildDateField(),
                 const SizedBox(height: 16),
@@ -295,36 +336,6 @@ class _BillFormSheetState extends State<BillFormSheet> {
           horizontal: 16,
           vertical: 18,
         ),
-      ),
-    );
-  }
-
-  Widget _buildDropdown({
-    required String label,
-    required String value,
-    required List<String> items,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: DropdownButtonFormField<String>(
-        initialValue: value,
-        decoration: InputDecoration(
-          labelText: label,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 4,
-            vertical: 8,
-          ),
-        ),
-        items: items
-            .map((item) => DropdownMenuItem<String>(value: item, child: Text(item)))
-            .toList(),
-        onChanged: onChanged,
       ),
     );
   }

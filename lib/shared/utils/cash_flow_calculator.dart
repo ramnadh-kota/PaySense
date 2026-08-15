@@ -93,7 +93,7 @@ class CashFlowCalculator {
 
     for (final transaction in transactions) {
       final event = _transactionEvent(transaction);
-      if (inMonth(event.date)) {
+      if (event != null && inMonth(event.date)) {
         events.add(event);
       }
     }
@@ -271,8 +271,13 @@ class CashFlowCalculator {
     );
   }
 
-  static CashFlowEvent _transactionEvent(Transaction transaction) {
-    final isIncome = transaction.transactionType.toLowerCase() == 'income';
+  /// Null for a wallet-transfer transaction — a transfer between the
+  /// user's own wallets is not income or an expense, and must never inflate
+  /// either bucket in the calendar/month summary.
+  static CashFlowEvent? _transactionEvent(Transaction transaction) {
+    final type = transaction.transactionType.toLowerCase();
+    if (type == 'transfer') return null;
+    final isIncome = type == 'income';
     return CashFlowEvent(
       date: _dateOnly(transaction.createdAt),
       amount: transaction.amount,

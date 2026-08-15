@@ -24,13 +24,14 @@ class WalletAdapter extends TypeAdapter<Wallet> {
       openingBalance: fields[4] as double,
       currentBalance: fields[5] as double,
       createdAt: fields[6] as DateTime,
+      isArchived: fields[7] == null ? false : fields[7] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, Wallet obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +45,9 @@ class WalletAdapter extends TypeAdapter<Wallet> {
       ..writeByte(5)
       ..write(obj.currentBalance)
       ..writeByte(6)
-      ..write(obj.createdAt);
+      ..write(obj.createdAt)
+      ..writeByte(7)
+      ..write(obj.isArchived);
   }
 
   @override

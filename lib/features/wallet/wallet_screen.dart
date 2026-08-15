@@ -4,6 +4,9 @@ import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
+import 'presentation/add_edit_wallet_screen.dart';
+import 'presentation/transfer_screen.dart';
+import 'presentation/wallet_detail_screen.dart';
 
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
@@ -44,12 +47,15 @@ class WalletScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    child: const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      color: AppColors.primary,
+                  IconButton(
+                    tooltip: 'Add account',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const AddEditWalletScreen()),
+                    ),
+                    icon: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                      child: const Icon(Icons.add_rounded, color: AppColors.primary),
                     ),
                   ),
                 ],
@@ -71,10 +77,9 @@ class WalletScreen extends ConsumerWidget {
                     Text(
                       walletsAsync.when(
                         data: (wallets) => _formatCurrency(
-                          wallets.fold<double>(
-                            0,
-                            (sum, wallet) => sum + wallet.currentBalance,
-                          ),
+                          wallets
+                              .where((w) => !w.isArchived)
+                              .fold<double>(0, (sum, wallet) => sum + wallet.currentBalance),
                         ),
                         loading: () => '—',
                         error: (_, _) => '—',
@@ -87,6 +92,25 @@ class WalletScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TransferScreen()),
+                  ),
+                  icon: const Icon(Icons.swap_horiz_rounded),
+                  label: const Text('Transfer between accounts'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
                 'All Wallets',
@@ -97,7 +121,8 @@ class WalletScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               walletsAsync.when(
-                data: (wallets) {
+                data: (allWallets) {
+                  final wallets = allWallets.where((w) => !w.isArchived).toList();
                   if (wallets.isEmpty) {
                     return AppCard(
                       padding: const EdgeInsets.all(24),
@@ -138,15 +163,46 @@ class WalletScreen extends ConsumerWidget {
   }
 }
 
-class _WalletCard extends StatelessWidget {
+class _WalletCard extends ConsumerWidget {
   final Wallet wallet;
 
   const _WalletCard({required this.wallet});
 
+  Future<void> _confirmArchive(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Archive account'),
+        content: Text(
+          '${wallet.name} will be hidden from your wallet list. Its balance and '
+          'transaction history are kept, and you can still reach it from any '
+          'linked transaction or transfer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await ref.read(walletsProvider.notifier).archiveWallet(wallet.id);
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return AppCard(
       padding: const EdgeInsets.all(20),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => WalletDetailScreen(wallet: wallet)),
+      ),
       child: Row(
         children: [
           Expanded(
@@ -185,6 +241,22 @@ class _WalletCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
+          ),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
+            onSelected: (value) {
+              if (value == 'edit') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => AddEditWalletScreen(wallet: wallet)),
+                );
+              } else if (value == 'archive') {
+                _confirmArchive(context, ref);
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'edit', child: Text('Edit')),
+              PopupMenuItem(value: 'archive', child: Text('Archive')),
+            ],
           ),
         ],
       ),

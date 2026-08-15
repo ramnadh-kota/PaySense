@@ -3,6 +3,9 @@ import 'package:uuid/uuid.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/features/loans/presentation/widgets/emi_calculator_widget.dart';
 import 'package:paysense/shared/models/loan.dart';
+import 'package:paysense/shared/models/wallet.dart';
+import 'package:paysense/shared/utils/wallet_account_resolver.dart';
+import 'package:paysense/shared/widgets/wallet_selector_field.dart';
 
 const List<String> _loanTypes = <String>[
   'Home',
@@ -12,12 +15,16 @@ const List<String> _loanTypes = <String>[
   'Credit Card',
   'Other',
 ];
-const List<String> _accounts = <String>['Checking', 'Savings', 'Credit Card', 'Cash'];
 
 class LoanFormSheet extends StatefulWidget {
-  const LoanFormSheet({super.key, this.loan, required this.onSave});
+  const LoanFormSheet({super.key, this.loan, required this.wallets, required this.onSave});
 
   final Loan? loan;
+
+  /// Non-archived wallets, plus the loan's currently-associated wallet if it
+  /// happens to be archived (so editing an old loan never silently loses
+  /// its existing, still-valid selection).
+  final List<Wallet> wallets;
   final Future<void> Function(Loan loan) onSave;
 
   @override
@@ -34,7 +41,12 @@ class _LoanFormSheetState extends State<LoanFormSheet> {
   final _manualEmiController = TextEditingController();
 
   String _loanType = _loanTypes.first;
-  String _account = _accounts.first;
+
+  /// The real Wallet.id EMIs are paid from — never a display label. Null
+  /// means "no wallet resolved/selected yet"; the form refuses to save
+  /// until the user picks one (see [_handleSave]).
+  String? _selectedWalletId;
+  String? _walletError;
   bool _autoCalculate = true;
   late DateTime _startDate;
   late DateTime _nextDueDate;
@@ -51,13 +63,17 @@ class _LoanFormSheetState extends State<LoanFormSheet> {
       _tenureController.text = loan.tenureMonths.toString();
       _manualEmiController.text = loan.emiAmount.toStringAsFixed(0);
       _loanType = _loanTypes.contains(loan.loanType) ? loan.loanType : _loanTypes.last;
-      _account = _accounts.contains(loan.accountId) ? loan.accountId : _accounts.first;
+      // Never guess: resolves to a wallet only when the existing accountId
+      // already is one, or unambiguously identifies exactly one wallet by
+      // name/type. Ambiguous or unmatched legacy data leaves this null.
+      _selectedWalletId = resolveWalletIdForAccount(loan.accountId, widget.wallets);
       _startDate = loan.startDate;
       _nextDueDate = loan.nextDueDate;
       _autoCalculate = false;
     } else {
       _startDate = DateTime.now();
       _nextDueDate = DateTime.now().add(const Duration(days: 30));
+      _selectedWalletId = widget.wallets.isEmpty ? null : widget.wallets.first.id;
     }
 
     for (final controller in [
@@ -137,6 +153,13 @@ class _LoanFormSheetState extends State<LoanFormSheet> {
       return;
     }
 
+    final walletId = _selectedWalletId;
+    if (walletId == null || widget.wallets.every((w) => w.id != walletId)) {
+      setState(() => _walletError = 'Please choose a payment account.');
+      return;
+    }
+    setState(() => _walletError = null);
+
     final id = widget.loan?.id ?? const Uuid().v4();
     final createdAt = widget.loan?.createdAt ?? DateTime.now();
 
@@ -151,7 +174,8 @@ class _LoanFormSheetState extends State<LoanFormSheet> {
             tenureMonths: _tenure,
             emiAmount: calculation.emiAmount,
             totalInterest: calculation.totalInterest,
-            accountId: _account,
+            // The real Wallet.id, never a display label.
+            accountId: walletId,
             startDate: _startDate,
             nextDueDate: _nextDueDate,
             createdAt: createdAt,
@@ -165,7 +189,7 @@ class _LoanFormSheetState extends State<LoanFormSheet> {
             tenureMonths: _tenure,
             emiAmount: calculation.emiAmount,
             totalInterest: calculation.totalInterest,
-            accountId: _account,
+            accountId: walletId,
             startDate: _startDate,
             nextDueDate: _nextDueDate,
             updatedAt: DateTime.now(),
@@ -269,12 +293,31 @@ class _LoanFormSheetState extends State<LoanFormSheet> {
                   },
                 ),
                 const SizedBox(height: 12),
-                _buildDropdown(
-                  label: 'Account',
-                  value: _account,
-                  items: _accounts,
-                  onChanged: (value) => setState(() => _account = value!),
-                ),
+                if (widget.wallets.isEmpty)
+                  const NoWalletsMessage(
+                    message: 'Add an account first to choose where EMIs are paid from.',
+                  )
+                else ...[
+                  WalletSelectorField(
+                    label: 'Payment account',
+                    wallets: widget.wallets,
+                    selectedWalletId: _selectedWalletId,
+                    onChanged: (value) => setState(() {
+                      _selectedWalletId = value;
+                      _walletError = null;
+                    }),
+                  ),
+                  if (_walletError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        _walletError!,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.danger,
+                        ),
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 12),
                 _buildDateField(
                   label: 'Start date',

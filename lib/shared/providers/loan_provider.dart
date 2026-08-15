@@ -10,6 +10,7 @@ import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/app_settings_repository.dart';
 import 'package:paysense/shared/repositories/loan_repository.dart';
+import 'package:paysense/shared/utils/wallet_account_resolver.dart';
 
 final loanRepositoryProvider = Provider<LoanRepository>((ref) {
   return LoanRepository.instance;
@@ -181,13 +182,22 @@ class LoansNotifier extends AsyncNotifier<List<Loan>> {
         final transactionRepository = ref.read(transactionRepositoryProvider);
         final walletRepository = ref.read(walletRepositoryProvider);
 
+        // Resolve to a real Wallet.id — never store loan.accountId's raw
+        // display label on the ledger record. Falls back to the legacy
+        // synthetic mapping only for old loans whose accountId can't be
+        // matched to any real wallet.
+        final wallets = await walletRepository.getAll();
+        final walletId =
+            resolveWalletIdForAccount(loan.accountId, wallets) ??
+            resolveLoanWalletId(loan.accountId);
+
         await transactionRepository.add(
           Transaction(
             id: const Uuid().v4(),
             title: '${loan.loanName} EMI',
             amount: paymentAmount,
             categoryId: loan.loanType,
-            accountId: loan.accountId,
+            accountId: walletId,
             transactionType: 'expense',
             paymentMethod: 'loan_emi',
             note: loan.lenderName,
@@ -195,7 +205,6 @@ class LoansNotifier extends AsyncNotifier<List<Loan>> {
           ),
         );
 
-        final walletId = resolveLoanWalletId(loan.accountId);
         await walletRepository.decreaseBalance(walletId, paymentAmount);
 
         final updated = loan.markEmiPaid(now, amount: paymentAmount);

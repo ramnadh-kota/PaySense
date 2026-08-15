@@ -20,6 +20,8 @@ class Transaction {
     required this.paymentMethod,
     required this.note,
     required this.createdAt,
+    this.transferId,
+    this.transferCounterpartyWalletId,
   });
 
   /// Unique identifier for the transaction.
@@ -58,6 +60,18 @@ class Transaction {
   @HiveField(8)
   final DateTime createdAt;
 
+  /// Shared identifier linking the two legs (source/destination) of a
+  /// single wallet-to-wallet transfer. Null for regular income/expense
+  /// transactions. Only meaningful when [transactionType] is `'transfer'`.
+  @HiveField(9)
+  final String? transferId;
+
+  /// The OTHER wallet's id involved in this transfer leg — e.g. on the
+  /// source leg, this is the destination wallet's id, and vice versa. Null
+  /// for regular income/expense transactions.
+  @HiveField(10)
+  final String? transferCounterpartyWalletId;
+
   /// Creates a copy of this transaction with the provided values.
   Transaction copyWith({
     String? id,
@@ -69,6 +83,8 @@ class Transaction {
     String? paymentMethod,
     String? note,
     DateTime? createdAt,
+    String? transferId,
+    String? transferCounterpartyWalletId,
   }) {
     return Transaction(
       id: id ?? this.id,
@@ -80,6 +96,9 @@ class Transaction {
       paymentMethod: paymentMethod ?? this.paymentMethod,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
+      transferId: transferId ?? this.transferId,
+      transferCounterpartyWalletId:
+          transferCounterpartyWalletId ?? this.transferCounterpartyWalletId,
     );
   }
 
@@ -95,6 +114,8 @@ class Transaction {
       'paymentMethod': paymentMethod,
       'note': note,
       'createdAt': _serializeDateTime(createdAt),
+      'transferId': transferId,
+      'transferCounterpartyWalletId': transferCounterpartyWalletId,
     };
   }
 
@@ -110,6 +131,8 @@ class Transaction {
       paymentMethod: map['paymentMethod'] as String,
       note: map['note'] as String,
       createdAt: _deserializeDateTime(map['createdAt']),
+      transferId: map['transferId'] as String?,
+      transferCounterpartyWalletId: map['transferCounterpartyWalletId'] as String?,
     );
   }
 
@@ -137,7 +160,9 @@ class Transaction {
         other.transactionType == transactionType &&
         other.paymentMethod == paymentMethod &&
         other.note == note &&
-        other.createdAt == createdAt;
+        other.createdAt == createdAt &&
+        other.transferId == transferId &&
+        other.transferCounterpartyWalletId == transferCounterpartyWalletId;
   }
 
   @override
@@ -152,6 +177,8 @@ class Transaction {
       paymentMethod,
       note,
       createdAt,
+      transferId,
+      transferCounterpartyWalletId,
     );
   }
 

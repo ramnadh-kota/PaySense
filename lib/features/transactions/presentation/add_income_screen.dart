@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
+import 'package:paysense/shared/widgets/wallet_selector_field.dart';
 import 'package:uuid/uuid.dart';
 
 /// A premium, fast-entry income capture screen.
@@ -21,7 +23,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
   final _noteController = TextEditingController();
 
   String? _selectedSource;
-  String? _selectedAccount;
+  String? _selectedWalletId;
 
   final List<String> _incomeSources = const <String>[
     'Salary',
@@ -33,13 +35,6 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     'Other',
   ];
 
-  final List<String> _accounts = const <String>[
-    'Checking',
-    'Savings',
-    'Credit Card',
-    'Cash',
-  ];
-
   @override
   void dispose() {
     _amountController.dispose();
@@ -47,7 +42,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     super.dispose();
   }
 
-  Future<void> _handleSave() async {
+  Future<void> _handleSave(List<Wallet> wallets) async {
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
       ScaffoldMessenger.of(
@@ -64,12 +59,22 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
       return;
     }
 
+    final walletId = _selectedWalletId;
+    if (walletId == null || wallets.every((w) => w.id != walletId)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please choose an account.')));
+      return;
+    }
+
     final transaction = Transaction(
       id: const Uuid().v4(),
       title: _selectedSource ?? 'Income',
       amount: amount,
       categoryId: _selectedSource ?? 'income',
-      accountId: _selectedAccount ?? 'default',
+      // The real Wallet.id, never a display label — see
+      // wallet_account_resolver.dart for why this matters.
+      accountId: walletId,
       transactionType: 'income',
       paymentMethod: 'bank',
       note: _noteController.text.trim(),
@@ -77,8 +82,6 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     );
 
     await TransactionRepository.instance.add(transaction);
-
-    final walletId = _resolveWalletId(_selectedAccount);
     await WalletRepository.instance.increaseBalance(walletId, amount);
     await ref.read(walletsProvider.notifier).reload();
     await ref.read(transactionsProvider.notifier).reload();
@@ -89,20 +92,13 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
     Navigator.of(context).pop();
   }
 
-  String _resolveWalletId(String? account) {
-    switch (account) {
-      case 'Cash':
-        return 'wallet-cash';
-      case 'Checking':
-      case 'Savings':
-      case 'Credit Card':
-      default:
-        return 'wallet-hdfc-salary';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final walletsAsync = ref.watch(walletsProvider);
+    final wallets = (walletsAsync.value ?? const <Wallet>[])
+        .where((w) => !w.isArchived)
+        .toList();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -194,17 +190,16 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              _buildDropdownField(
-                context: context,
-                label: 'Account',
-                value: _selectedAccount,
-                items: _accounts,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedAccount = value;
-                  });
-                },
-              ),
+              if (wallets.isEmpty)
+                const NoWalletsMessage(
+                  message: 'Add an account first to record where this income goes.',
+                )
+              else
+                WalletSelectorField(
+                  wallets: wallets,
+                  selectedWalletId: _selectedWalletId,
+                  onChanged: (value) => setState(() => _selectedWalletId = value),
+                ),
               const SizedBox(height: 12),
               TextField(
                 controller: _noteController,
@@ -225,7 +220,7 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: _handleSave,
+                  onPressed: () => _handleSave(wallets),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,

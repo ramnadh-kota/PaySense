@@ -28,4 +28,5 @@ class AppRoutes {
   static const safeToSpend = '/safe-to-spend';
   static const cashFlow = '/cash-flow';
   static const subscriptions = '/subscriptions';
+  static const smsReview = '/sms-review';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/shared/models/app_lock_settings.dart';
@@ -7,6 +8,7 @@ import 'package:paysense/shared/models/app_settings.dart';
 import 'package:paysense/shared/providers/app_lock_provider.dart';
 import 'package:paysense/shared/providers/auth_provider.dart';
 import 'package:paysense/shared/providers/settings_provider.dart';
+import 'package:paysense/shared/providers/sms_review_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/utils/currency_formatter.dart';
@@ -102,6 +104,19 @@ class SettingsScreen extends ConsumerWidget {
                     onTap: () => _showThemePicker(context, ref, settings),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            _SectionLabel('Automation'),
+            AppCard(
+              padding: EdgeInsets.zero,
+              child: _SmsAutomationSection(
+                enabled: settings.smsAutomationEnabled,
+                pendingReviewCount:
+                    ref.watch(smsReviewItemsProvider).value?.length ?? 0,
+                onToggle: (value) => _handleSmsAutomationToggle(context, ref, value),
+                onReviewTap: () =>
+                    Navigator.of(context).pushNamed(AppRoutes.smsReview),
               ),
             ),
             const SizedBox(height: 24),
@@ -204,6 +219,42 @@ class SettingsScreen extends ConsumerWidget {
     }
 
     await notifier.setEnabled(true);
+  }
+
+  /// Permission is only ever requested here, at the moment the user turns
+  /// this feature on — never at app startup, never as a prerequisite for
+  /// anything else in the app. Denied/permanently-denied both leave the
+  /// setting off and the rest of PaySense fully usable.
+  Future<void> _handleSmsAutomationToggle(
+    BuildContext context,
+    WidgetRef ref,
+    bool enable,
+  ) async {
+    if (!enable) {
+      await ref.read(settingsProvider.notifier).setSmsAutomationEnabled(false);
+      return;
+    }
+
+    final status = await Permission.sms.request();
+    if (!context.mounted) {
+      return;
+    }
+
+    if (!status.isGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status.isPermanentlyDenied
+                ? 'SMS permission is permanently denied. Enable it from '
+                    'system app settings to use automatic SMS transactions.'
+                : 'SMS permission wasn\'t granted, so this stays off.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await ref.read(settingsProvider.notifier).setSmsAutomationEnabled(true);
   }
 
   void _showAuthMethodPicker(BuildContext context, WidgetRef ref) {
@@ -717,6 +768,74 @@ class _NotificationSwitchRow extends StatelessWidget {
           activeThumbColor: AppColors.primary,
           onChanged: onChanged,
         ),
+      ],
+    );
+  }
+}
+
+class _SmsAutomationSection extends StatelessWidget {
+  const _SmsAutomationSection({
+    required this.enabled,
+    required this.pendingReviewCount,
+    required this.onToggle,
+    required this.onReviewTap,
+  });
+
+  final bool enabled;
+  final int pendingReviewCount;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onReviewTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.sms_outlined, size: 20, color: AppColors.primary),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Automatic SMS Transactions',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Automatically detect supported bank transactions from SMS.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: enabled,
+                activeThumbColor: AppColors.primary,
+                onChanged: onToggle,
+              ),
+            ],
+          ),
+        ),
+        if (enabled) ...[
+          const _TileDivider(),
+          _SettingsTile(
+            icon: Icons.fact_check_outlined,
+            label: 'Detected transactions',
+            subtitle: pendingReviewCount > 0
+                ? '$pendingReviewCount waiting for review'
+                : 'Nothing waiting for review',
+            onTap: onReviewTap,
+          ),
+        ],
       ],
     );
   }

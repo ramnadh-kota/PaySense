@@ -3,6 +3,11 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- Only ever requested at runtime after the user explicitly turns on
+         "Automatic SMS Transactions" in Settings — never a prerequisite
+         for using the rest of the app. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
+    <uses-permission android:name="android.permission.READ_SMS"/>
     <application
         android:label="paysense"
         android:name="${applicationName}"
@@ -34,6 +39,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Captures bank/UPI SMS for automatic transaction detection. Works
+             whether the app is open, backgrounded, or fully closed — it only
+             persists (sender, body, timestamp) to SharedPreferences; all
+             parsing/processing happens later in Dart (SmsTransactionProcessor)
+             once the Flutter engine is running. android:permission restricts
+             delivery to the system (the only holder of BROADCAST_SMS). -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
+            </intent-filter>
+        </receiver>
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
             <intent-filter>

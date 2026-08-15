@@ -6,7 +6,9 @@ import 'package:paysense/features/loans/presentation/widgets/loan_form_sheet.dar
 import 'package:paysense/features/loans/presentation/widgets/loan_summary_card.dart';
 import 'package:paysense/features/loans/presentation/widgets/payment_confirmation_dialog.dart';
 import 'package:paysense/shared/models/loan.dart';
+import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/providers/loan_provider.dart';
+import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
 class LoansScreen extends ConsumerWidget {
@@ -140,6 +142,9 @@ class LoansScreen extends ConsumerWidget {
     WidgetRef ref, {
     Loan? loan,
   }) async {
+    final allWallets = ref.read(walletsProvider).value ?? const <Wallet>[];
+    final wallets = allWallets.where((w) => !w.isArchived || w.id == loan?.accountId).toList();
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -147,6 +152,7 @@ class LoansScreen extends ConsumerWidget {
       builder: (context) {
         return LoanFormSheet(
           loan: loan,
+          wallets: wallets,
           onSave: (updated) async {
             if (loan == null) {
               await ref.read(loansProvider.notifier).addLoan(updated);

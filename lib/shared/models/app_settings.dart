@@ -17,6 +17,7 @@ class AppSettings {
     this.billReminders = true,
     this.recurringReminders = true,
     this.loanReminders = true,
+    this.smsAutomationEnabled = false,
   });
 
   final AppThemeMode themeMode;
@@ -24,17 +25,24 @@ class AppSettings {
   final bool recurringReminders;
   final bool loanReminders;
 
+  /// Whether PaySense should automatically detect bank/UPI transactions
+  /// from incoming SMS. Off by default — SMS permissions are only ever
+  /// requested after the user explicitly turns this on.
+  final bool smsAutomationEnabled;
+
   AppSettings copyWith({
     AppThemeMode? themeMode,
     bool? billReminders,
     bool? recurringReminders,
     bool? loanReminders,
+    bool? smsAutomationEnabled,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
       billReminders: billReminders ?? this.billReminders,
       recurringReminders: recurringReminders ?? this.recurringReminders,
       loanReminders: loanReminders ?? this.loanReminders,
+      smsAutomationEnabled: smsAutomationEnabled ?? this.smsAutomationEnabled,
     );
   }
 
@@ -48,7 +56,8 @@ class AppSettings {
         other.themeMode == themeMode &&
         other.billReminders == billReminders &&
         other.recurringReminders == recurringReminders &&
-        other.loanReminders == loanReminders;
+        other.loanReminders == loanReminders &&
+        other.smsAutomationEnabled == smsAutomationEnabled;
   }
 
   @override
@@ -57,5 +66,6 @@ class AppSettings {
     billReminders,
     recurringReminders,
     loanReminders,
+    smsAutomationEnabled,
   );
 }

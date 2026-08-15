@@ -5,6 +5,8 @@ import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/shared/providers/app_settings_provider.dart';
 import 'package:paysense/shared/providers/auth_provider.dart';
+import 'package:paysense/shared/providers/sms_automation_provider.dart';
+import 'package:paysense/shared/repositories/app_settings_repository.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -27,6 +29,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
+    // Fire-and-forget: flushes whatever the native SMS receiver queued up
+    // while the app wasn't running. Never awaited/blocking — a failure or
+    // slow platform-channel round trip here must never delay app startup.
+    // Only runs at all once the user has explicitly turned this on.
+    if (AppSettingsRepository.instance.smsAutomationEnabled()) {
+      unawaited(_flushPendingSms());
+    }
+
     final isFirstLaunch = await ref.read(isFirstLaunchProvider.future);
 
     if (!mounted) {
@@ -47,6 +57,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     Navigator.of(context).pushReplacementNamed(
       authState.isAuthenticated ? AppRoutes.navigation : AppRoutes.login,
     );
+  }
+
+  Future<void> _flushPendingSms() async {
+    try {
+      await ref.read(smsTransactionProcessorProvider).processPending();
+    } catch (_) {
+      // Best-effort — a failed flush here is retried the next time the
+      // app initializes; it must never block or crash app startup.
+    }
   }
 
   @override

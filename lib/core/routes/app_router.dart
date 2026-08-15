@@ -21,6 +21,7 @@ import '../../features/safe_to_spend/presentation/safe_to_spend_screen.dart';
 import '../../features/settings/presentation/app_lock_pin_setup_screen.dart';
 import '../../features/settings/presentation/change_password_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/sms/presentation/sms_review_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/subscriptions/presentation/subscriptions_screen.dart';
 import '../../features/transactions/presentation/transactions_screen.dart';
@@ -84,6 +85,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const CashFlowScreen());
       case AppRoutes.subscriptions:
         return MaterialPageRoute(builder: (_) => const SubscriptionsScreen());
+      case AppRoutes.smsReview:
+        return MaterialPageRoute(builder: (_) => const SmsReviewScreen());
       default:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
     }

@@ -10,6 +10,7 @@ import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/app_settings_repository.dart';
 import 'package:paysense/shared/repositories/recurring_transaction_repository.dart';
+import 'package:paysense/shared/utils/wallet_account_resolver.dart';
 
 final recurringTransactionRepositoryProvider =
     Provider<RecurringTransactionRepository>((ref) {
@@ -176,6 +177,9 @@ class RecurringTransactionsNotifier
     final items = await repository.getAll();
     final transactionRepository = ref.read(transactionRepositoryProvider);
     final walletRepository = ref.read(walletRepositoryProvider);
+    // Fetched once — the set of real wallets doesn't change across this
+    // method's iterations, only their balances do.
+    final wallets = await walletRepository.getAll();
     var didGenerate = false;
 
     for (final item in items) {
@@ -184,13 +188,21 @@ class RecurringTransactionsNotifier
       // Cap iterations so a long-neglected recurring definition can't spin
       // forever generating history; it catches up to "now" instead.
       while (current.isDue(now) && iterations < 366) {
+        // Resolve to a real Wallet.id — never store current.accountId's raw
+        // display label on the ledger record. Falls back to the legacy
+        // synthetic mapping only for old recurring items whose accountId
+        // can't be matched to any real wallet.
+        final walletId =
+            resolveWalletIdForAccount(current.accountId, wallets) ??
+            resolveRecurringWalletId(current.accountId);
+
         await transactionRepository.add(
           Transaction(
             id: const Uuid().v4(),
             title: current.title,
             amount: current.amount,
             categoryId: current.categoryId,
-            accountId: current.accountId,
+            accountId: walletId,
             transactionType: current.transactionType,
             paymentMethod: 'recurring',
             note: current.note,
@@ -198,7 +210,6 @@ class RecurringTransactionsNotifier
           ),
         );
 
-        final walletId = resolveRecurringWalletId(current.accountId);
         if (current.transactionType.toLowerCase() == 'income') {
           await walletRepository.increaseBalance(walletId, current.amount);
         } else {

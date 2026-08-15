@@ -9,6 +9,7 @@ enum NotificationType {
   loanPayment,
   goal,
   financialHealth,
+  smsTransaction,
   general,
 }
 

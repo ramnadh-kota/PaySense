@@ -44,7 +44,7 @@ class NavigationScreen extends ConsumerWidget {
         backgroundColor: AppColors.accent,
         child: const Icon(Icons.add_rounded),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: const NudgedFabLocation(),
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
@@ -97,4 +97,28 @@ class _NavItem {
   final String label;
 
   const _NavItem({required this.icon, required this.label});
+}
+
+/// [FloatingActionButtonLocation.centerDocked], nudged slightly left and up
+/// so the FAB no longer sits directly over bottom-center screen content
+/// (e.g. the Analytics tab's charts) while staying just as thumb-reachable
+/// and still docked into the bottom bar's notch.
+class NudgedFabLocation extends FloatingActionButtonLocation {
+  const NudgedFabLocation();
+
+  /// Shift applied to `centerDocked`'s offset: negative x moves left,
+  /// negative y moves up.
+  static const double dx = -24;
+  static const double dy = -12;
+
+  @override
+  Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
+    final centerDocked = FloatingActionButtonLocation.centerDocked.getOffset(
+      scaffoldGeometry,
+    );
+    return Offset(centerDocked.dx + dx, centerDocked.dy + dy);
+  }
+
+  @override
+  String toString() => 'NudgedFabLocation';
 }

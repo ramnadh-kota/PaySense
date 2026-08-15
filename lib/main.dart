@@ -8,9 +8,11 @@ import 'package:paysense/shared/models/goal.dart';
 import 'package:paysense/shared/models/loan.dart';
 import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
+import 'package:paysense/shared/models/sms_review_item.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/utils/transaction_account_migration.dart';
 import 'app/app.dart';
 
 Future<void> main() async {
@@ -47,6 +49,9 @@ Future<void> main() async {
   if (!Hive.isAdapterRegistered(9)) {
     Hive.registerAdapter(AppNotificationAdapter());
   }
+  if (!Hive.isAdapterRegistered(10)) {
+    Hive.registerAdapter(SmsReviewItemAdapter());
+  }
 
   await Hive.openBox<UserProfile>('user_profile');
   await Hive.openBox<Wallet>('wallets');
@@ -60,8 +65,17 @@ Future<void> main() async {
   await Hive.openBox<Account>('accounts');
   await Hive.openBox('auth_session');
   await Hive.openBox<AppNotification>('app_notifications');
+  await Hive.openBox<SmsReviewItem>('sms_review_items');
+  // Untyped — just a single bounded list of processed SMS fingerprints,
+  // see SmsFingerprintRepository.
+  await Hive.openBox('sms_processed_fingerprints');
 
   await NotificationService.instance.initialize();
+
+  // One-time, idempotent correction of any Transaction.accountId values
+  // still holding a legacy display label instead of a real Wallet.id — see
+  // TransactionAccountMigration for the (never-guess) resolution rules.
+  await TransactionAccountMigrationRunner.runIfNeeded();
 
   runApp(const PaySenseApp());
 }

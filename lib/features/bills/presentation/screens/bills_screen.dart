@@ -5,7 +5,9 @@ import 'package:paysense/features/bills/presentation/widgets/bill_card.dart';
 import 'package:paysense/features/bills/presentation/widgets/bill_form_sheet.dart';
 import 'package:paysense/features/bills/presentation/widgets/bill_summary_card.dart';
 import 'package:paysense/shared/models/bill.dart';
+import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/providers/bill_provider.dart';
+import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
 class BillsScreen extends ConsumerWidget {
@@ -140,6 +142,9 @@ class BillsScreen extends ConsumerWidget {
     WidgetRef ref, {
     Bill? bill,
   }) async {
+    final allWallets = ref.read(walletsProvider).value ?? const <Wallet>[];
+    final wallets = allWallets.where((w) => !w.isArchived || w.id == bill?.accountId).toList();
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -147,6 +152,7 @@ class BillsScreen extends ConsumerWidget {
       builder: (context) {
         return BillFormSheet(
           bill: bill,
+          wallets: wallets,
           onSave: (updated) async {
             if (bill == null) {
               await ref.read(billsProvider.notifier).addBill(updated);
