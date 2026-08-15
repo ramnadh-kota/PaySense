@@ -28,6 +28,7 @@ import 'widgets/cash_flow_card.dart';
 import 'widgets/financial_health_card.dart';
 import 'widgets/quick_action_button.dart';
 import 'widgets/safe_to_spend_card.dart';
+import 'widgets/subscriptions_card.dart';
 import 'widgets/summary_card.dart';
 import 'widgets/transaction_item.dart';
 
@@ -284,6 +285,8 @@ class DashboardScreen extends ConsumerWidget {
           SafeToSpendCard(currencyFormatter: currencyFormatter),
           const SizedBox(height: 12),
           CashFlowCard(currencyFormatter: currencyFormatter),
+          const SizedBox(height: 12),
+          SubscriptionsCard(currencyFormatter: currencyFormatter),
           const SizedBox(height: 24),
           Text(
             "Today's Money",
