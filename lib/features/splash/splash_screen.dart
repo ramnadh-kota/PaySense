@@ -62,9 +62,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _flushPendingSms() async {
     try {
       await ref.read(smsTransactionProcessorProvider).processPending();
-    } catch (_) {
+      await AppSettingsRepository.instance.recordSmsProcessingSuccess();
+    } catch (e) {
       // Best-effort — a failed flush here is retried the next time the
       // app initializes; it must never block or crash app startup.
+      await AppSettingsRepository.instance.recordSmsProcessingFailure(
+        'Startup SMS processing failed: ${e.runtimeType}',
+      );
     }
   }
 
@@ -88,7 +92,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 color: AppColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(28),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.account_balance_wallet_rounded,
                 size: 88,
                 color: AppColors.primary,
@@ -110,7 +114,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               ).textTheme.bodyLarge?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 32),
-            const CircularProgressIndicator(color: AppColors.primary),
+            CircularProgressIndicator(color: AppColors.primary),
           ],
         ),
       ),

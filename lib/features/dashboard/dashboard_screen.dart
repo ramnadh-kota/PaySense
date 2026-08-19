@@ -176,7 +176,7 @@ class DashboardScreen extends ConsumerWidget {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                child: const Icon(
+                child: Icon(
                   Icons.person_rounded,
                   color: AppColors.primary,
                 ),
@@ -408,6 +408,44 @@ class DashboardScreen extends ConsumerWidget {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          AppCard(
+            padding: const EdgeInsets.all(16),
+            onTap: () => Navigator.of(context).pushNamed(AppRoutes.reports),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightTeal,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.insert_chart_outlined_rounded, color: AppColors.primary),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Reports',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Where your money went, and how it compares →',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -485,9 +523,17 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Remaining: ${currencyFormatter.format(budgetTotals.remainingBudget)}',
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    budgetTotals.remainingBudget < 0
+                        ? '${currencyFormatter.format(-budgetTotals.remainingBudget)} over budget'
+                        : 'Remaining: ${currencyFormatter.format(budgetTotals.remainingBudget)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: budgetTotals.remainingBudget < 0
+                          ? AppColors.danger
+                          : AppColors.textSecondary,
+                      fontWeight: budgetTotals.remainingBudget < 0
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
                   ),
                 ],
               ),
@@ -565,7 +611,7 @@ class DashboardScreen extends ConsumerWidget {
                       value: (relevantGoal.progressPercentage / 100).clamp(0.0, 1.0),
                       minHeight: 8,
                       backgroundColor: AppColors.background,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
+                      valueColor: AlwaysStoppedAnimation<Color>(
                         AppColors.primary,
                       ),
                     ),
@@ -925,58 +971,6 @@ class DashboardScreen extends ConsumerWidget {
                     }).toList(),
                   ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            'Quick Actions',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: QuickActionButton(
-                  icon: Icons.remove_circle_outline,
-                  label: 'Add expense',
-                  color: AppColors.accent,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: QuickActionButton(
-                  icon: Icons.add_circle_outline,
-                  label: 'Add income',
-                  color: AppColors.accent,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AddIncomeScreen()),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: QuickActionButton(
-                  icon: Icons.flag_outlined,
-                  label: 'Add goal',
-                  onTap: () =>
-                      Navigator.of(context).pushNamed(AppRoutes.goals),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: QuickActionButton(
-                  icon: Icons.bar_chart_rounded,
-                  label: 'Add budget',
-                  onTap: () =>
-                      Navigator.of(context).pushNamed(AppRoutes.budget),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -1073,7 +1067,7 @@ class _NotificationBell extends ConsumerWidget {
           radius: 24,
           backgroundColor: AppColors.primary.withValues(alpha: 0.12),
           child: IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.notifications_outlined,
               color: AppColors.primary,
             ),

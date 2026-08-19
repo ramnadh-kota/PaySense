@@ -8,6 +8,7 @@ import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
 import 'package:paysense/shared/widgets/wallet_selector_field.dart';
+import 'package:paysense/features/wallet/presentation/add_edit_wallet_screen.dart';
 import 'package:uuid/uuid.dart';
 
 /// A premium, fast-entry income capture screen.
@@ -191,11 +192,15 @@ class _AddIncomeScreenState extends ConsumerState<AddIncomeScreen> {
               ),
               const SizedBox(height: 12),
               if (wallets.isEmpty)
-                const NoWalletsMessage(
-                  message: 'Add an account first to record where this income goes.',
+                NoWalletsMessage(
+                  message: 'Add a wallet first to record where this income goes.',
+                  onAddWallet: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddEditWalletScreen()),
+                  ),
                 )
               else
                 WalletSelectorField(
+                  label: 'Deposit into',
                   wallets: wallets,
                   selectedWalletId: _selectedWalletId,
                   onChanged: (value) => setState(() => _selectedWalletId = value),

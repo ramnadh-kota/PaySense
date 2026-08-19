@@ -384,7 +384,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.cake_outlined, color: AppColors.primary),
+            Icon(Icons.cake_outlined, color: AppColors.primary),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

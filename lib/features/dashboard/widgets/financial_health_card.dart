@@ -63,9 +63,11 @@ class FinancialHealthCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _StatusChip(status: health.status),
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _StatusChip(status: health.status),
+                  ),
                 ),
               ],
             ),
@@ -106,6 +108,8 @@ class _StatusChip extends StatelessWidget {
       ),
       child: Text(
         financialHealthStatusLabel(status),
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
         style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
       ),
     );

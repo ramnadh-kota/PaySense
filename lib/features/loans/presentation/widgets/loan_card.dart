@@ -44,7 +44,7 @@ class LoanCard extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.account_balance_rounded,
                   color: AppColors.primary,
                   size: 20,
@@ -136,7 +136,7 @@ class LoanCard extends StatelessWidget {
                     onPressed: onPayEmi,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
+                      side: BorderSide(color: AppColors.primary),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -151,7 +151,7 @@ class LoanCard extends StatelessWidget {
                     onPressed: onClose,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textSecondary,
-                      side: const BorderSide(color: AppColors.divider),
+                      side: BorderSide(color: AppColors.divider),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
@@ -164,11 +164,11 @@ class LoanCard extends StatelessWidget {
                 const Expanded(child: SizedBox.shrink()),
               IconButton(
                 onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                icon: Icon(Icons.edit_outlined, color: AppColors.primary),
               ),
               IconButton(
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                icon: Icon(Icons.delete_outline, color: AppColors.danger),
               ),
             ],
           ),

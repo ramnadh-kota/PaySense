@@ -177,7 +177,7 @@ class _AppLockPinSetupScreenState extends ConsumerState<AppLockPinSetupScreen> {
   }) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: const Icon(Icons.pin_outlined, color: AppColors.primary),
+      prefixIcon: Icon(Icons.pin_outlined, color: AppColors.primary),
       suffixIcon: IconButton(
         icon: Icon(
           obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
@@ -212,12 +212,12 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 20),
+          Icon(Icons.error_outline_rounded, color: AppColors.danger, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: AppColors.danger, fontSize: 13),
+              style: TextStyle(color: AppColors.danger, fontSize: 13),
             ),
           ),
         ],

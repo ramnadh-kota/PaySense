@@ -107,7 +107,7 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
       expand: false,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
@@ -267,7 +267,7 @@ class _TransactionFilterSheetState extends ConsumerState<TransactionFilterSheet>
                         onPressed: _clearAll,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.textPrimary,
-                          side: const BorderSide(color: AppColors.divider),
+                          side: BorderSide(color: AppColors.divider),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),

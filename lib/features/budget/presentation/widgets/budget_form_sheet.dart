@@ -19,6 +19,12 @@ class _BudgetFormSheetState extends State<BudgetFormSheet> {
   final _allocatedController = TextEditingController();
   final _monthController = TextEditingController();
   final _yearController = TextEditingController();
+  bool _isSaving = false;
+
+  static const List<String> _validMonths = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
 
   @override
   void initState() {
@@ -42,6 +48,12 @@ class _BudgetFormSheetState extends State<BudgetFormSheet> {
   }
 
   Future<void> _handleSave() async {
+    // Guards against a double-tap on "Save budget" creating two identical
+    // records — mirrors the in-flight guards used elsewhere for financial
+    // mutations that have no confirmation dialog in between.
+    if (_isSaving) {
+      return;
+    }
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -56,7 +68,12 @@ class _BudgetFormSheetState extends State<BudgetFormSheet> {
     final year =
         int.tryParse(_yearController.text.trim()) ?? DateTime.now().year;
     final categoryName = _categoryController.text.trim();
-    final categoryId = categoryName.toLowerCase().replaceAll(' ', '-');
+    // The real Transaction.categoryId is always the raw category label a
+    // user picked when adding an expense (e.g. "Groceries") — reusing that
+    // exact string here (rather than a lowercase-dashed transform of it)
+    // is what lets BudgetRepository.refreshBudgets actually match spend
+    // against this budget instead of silently tracking ₹0 forever.
+    final categoryId = categoryName;
     final id = widget.budget?.id ?? const Uuid().v4();
 
     final budget = Budget.create(
@@ -69,7 +86,14 @@ class _BudgetFormSheetState extends State<BudgetFormSheet> {
       createdAt: widget.budget?.createdAt ?? DateTime.now(),
     );
 
-    await widget.onSave(budget);
+    setState(() => _isSaving = true);
+    try {
+      await widget.onSave(budget);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -78,7 +102,7 @@ class _BudgetFormSheetState extends State<BudgetFormSheet> {
       expand: false,
       builder: (context, controller) {
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
@@ -124,8 +148,22 @@ class _BudgetFormSheetState extends State<BudgetFormSheet> {
                   label: 'Month',
                   controller: _monthController,
                   hint: 'March',
-                  validator: (value) =>
-                      value?.trim().isEmpty == true ? 'Enter month' : null,
+                  validator: (value) {
+                    final trimmed = value?.trim() ?? '';
+                    if (trimmed.isEmpty) {
+                      return 'Enter month';
+                    }
+                    final isValid = _validMonths.any(
+                      (month) => month.toLowerCase() == trimmed.toLowerCase(),
+                    );
+                    // A month name BudgetRepository can't recognize (typo,
+                    // abbreviation) would otherwise save successfully but
+                    // silently track ₹0 spent forever, with no error ever
+                    // shown to the user.
+                    return isValid
+                        ? null
+                        : 'Enter a full month name, e.g. March';
+                  },
                 ),
                 const SizedBox(height: 12),
                 _buildTextField(
@@ -143,7 +181,7 @@ class _BudgetFormSheetState extends State<BudgetFormSheet> {
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: _handleSave,
+                  onPressed: _isSaving ? null : _handleSave,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,

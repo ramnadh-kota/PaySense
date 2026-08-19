@@ -150,7 +150,7 @@ class _BillFormSheetState extends State<BillFormSheet> {
       maxChildSize: 0.95,
       builder: (context, controller) {
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
@@ -371,7 +371,7 @@ class _BillFormSheetState extends State<BillFormSheet> {
                 ),
               ],
             ),
-            const Icon(
+            Icon(
               Icons.calendar_today_rounded,
               color: AppColors.primary,
               size: 20,

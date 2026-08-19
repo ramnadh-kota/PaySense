@@ -17,7 +17,7 @@ class GoalPreset {
   final Color color;
 }
 
-const List<GoalPreset> goalPresets = <GoalPreset>[
+List<GoalPreset> get goalPresets => <GoalPreset>[
   GoalPreset(
     category: 'Emergency Fund',
     iconKey: 'shield',

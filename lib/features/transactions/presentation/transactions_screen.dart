@@ -78,7 +78,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                               .setSearchQuery(value),
                           decoration: InputDecoration(
                             hintText: 'Search title, category, note, account',
-                            prefixIcon: const Icon(
+                            prefixIcon: Icon(
                               Icons.search_rounded,
                               color: AppColors.textSecondary,
                             ),
@@ -115,7 +115,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       ),
                       const SizedBox(width: 4),
                       PopupMenuButton<TransactionSortOption>(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.sort_rounded,
                           color: AppColors.textPrimary,
                         ),

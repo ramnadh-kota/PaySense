@@ -354,4 +354,59 @@ void main() {
     // definition never declaring one.
     expect(await SmsReviewRepository.instance.getAll(), isEmpty);
   });
+
+  test(
+    '18. failed processing does not lose the queued event — a mid-batch '
+    'error means acknowledge() must never run, so the event is retried '
+    'next time rather than silently dropped',
+    () async {
+      await _addWallet('w-hdfc', 'HDFC Bank', bankName: 'HDFC', balance: 5000);
+
+      final fakeChannel = _RecordingSmsChannel([
+        _event(sender: 'HDFCBK', body: 'Rs. 500 debited from A/c XX1234 at AMAZON'),
+      ]);
+      final container = ProviderContainer(
+        overrides: [
+          walletsProvider.overrideWith(_ThrowingWalletsNotifier.new),
+          smsChannelProvider.overrideWithValue(fakeChannel),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final processor = container.read(smsTransactionProcessorProvider);
+
+      await expectLater(processor.processPending(), throwsException);
+
+      expect(
+        fakeChannel.acknowledgeCalled,
+        isFalse,
+        reason: 'acknowledge() must not run when processing throws — the '
+            'native queue is the only copy of this event, so acknowledging '
+            'it here would lose it forever.',
+      );
+      expect(await TransactionRepository.instance.getAll(), isEmpty);
+    },
+  );
+}
+
+class _ThrowingWalletsNotifier extends WalletsNotifier {
+  @override
+  Future<List<Wallet>> build() async {
+    throw Exception('simulated failure reading wallets');
+  }
+}
+
+class _RecordingSmsChannel extends SmsChannel {
+  _RecordingSmsChannel(this._pending);
+
+  final List<RawSmsEvent> _pending;
+  bool acknowledgeCalled = false;
+
+  @override
+  Future<List<RawSmsEvent>> fetchPending() async => _pending;
+
+  @override
+  Future<void> acknowledge(List<String> nativeIds) async {
+    acknowledgeCalled = true;
+  }
 }

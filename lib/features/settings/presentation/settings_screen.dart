@@ -10,6 +10,9 @@ import 'package:paysense/shared/providers/auth_provider.dart';
 import 'package:paysense/shared/providers/settings_provider.dart';
 import 'package:paysense/shared/providers/sms_review_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
+import 'package:paysense/shared/repositories/app_settings_repository.dart';
+import 'package:paysense/shared/repositories/sms_fingerprint_repository.dart';
+import 'package:paysense/shared/services/sms_channel.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/utils/currency_formatter.dart';
 import 'package:paysense/shared/utils/financial_data_exporter.dart';
@@ -60,7 +63,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             _SectionLabel('Security'),
             AppCard(
               padding: EdgeInsets.zero,
@@ -72,7 +75,7 @@ class SettingsScreen extends ConsumerWidget {
                     Navigator.of(context).pushNamed(AppRoutes.appLockPinSetup),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             _SectionLabel('Preferences'),
             AppCard(
               padding: EdgeInsets.zero,
@@ -106,7 +109,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             _SectionLabel('Automation'),
             AppCard(
               padding: EdgeInsets.zero,
@@ -119,7 +122,7 @@ class SettingsScreen extends ConsumerWidget {
                     Navigator.of(context).pushNamed(AppRoutes.smsReview),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             _SectionLabel('Data'),
             AppCard(
               padding: EdgeInsets.zero,
@@ -140,7 +143,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             _SectionLabel('About'),
             AppCard(
               padding: EdgeInsets.zero,
@@ -166,7 +169,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
             _SectionLabel('Account'),
             AppCard(
               padding: EdgeInsets.zero,
@@ -282,8 +285,8 @@ class SettingsScreen extends ConsumerWidget {
                 },
               )
             else
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
                   'Biometric authentication isn\'t available on this device.',
                   style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
@@ -836,7 +839,167 @@ class _SmsAutomationSection extends StatelessWidget {
             onTap: onReviewTap,
           ),
         ],
+        const _TileDivider(),
+        _SettingsTile(
+          icon: Icons.bug_report_outlined,
+          label: 'Automation diagnostics',
+          subtitle: 'Check permission & processing status',
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (context) => const _SmsDiagnosticsDialog(),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+/// Read-only, real-device debugging aid for the SMS automation pipeline —
+/// lets a manual tester see which stage is failing (permission never
+/// granted vs. events stuck in the native queue vs. a processing error)
+/// without needing device logs. Never shows raw SMS body/sender text, and
+/// never logs anything itself; it only reads counters and the
+/// already-sanitized last-error string [AppSettingsRepository] holds.
+class _SmsDiagnosticsDialog extends ConsumerStatefulWidget {
+  const _SmsDiagnosticsDialog();
+
+  @override
+  ConsumerState<_SmsDiagnosticsDialog> createState() =>
+      _SmsDiagnosticsDialogState();
+}
+
+class _SmsDiagnosticsDialogState extends ConsumerState<_SmsDiagnosticsDialog> {
+  bool _loading = true;
+  PermissionStatus? _permissionStatus;
+  int _pendingNativeCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final status = await Permission.sms.status;
+    final pending = await SmsChannel().fetchPending();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _permissionStatus = status;
+      _pendingNativeCount = pending.length;
+      _loading = false;
+    });
+  }
+
+  String _permissionLabel(PermissionStatus? status) {
+    if (status == null) {
+      return '—';
+    }
+    if (status.isGranted) {
+      return 'Granted';
+    }
+    if (status.isPermanentlyDenied) {
+      return 'Permanently denied';
+    }
+    return 'Denied';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = ref.watch(settingsProvider).value;
+    final pendingReviewCount = ref.watch(smsReviewItemsProvider).value?.length ?? 0;
+    final processedFingerprints = SmsFingerprintRepository.instance.count();
+    final lastStatus = AppSettingsRepository.instance.smsLastProcessingStatus();
+    final lastError = AppSettingsRepository.instance.smsLastProcessingError();
+    final lastAt = AppSettingsRepository.instance.smsLastProcessingAt();
+
+    return AlertDialog(
+      title: const Text('Automation diagnostics'),
+      content: _loading
+          ? const SizedBox(
+              height: 80,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _DiagnosticRow('SMS permission', _permissionLabel(_permissionStatus)),
+                  _DiagnosticRow(
+                    'Automation',
+                    (settings?.smsAutomationEnabled ?? false) ? 'Enabled' : 'Disabled',
+                  ),
+                  _DiagnosticRow('Pending native SMS', '$_pendingNativeCount'),
+                  _DiagnosticRow('Processed fingerprints', '$processedFingerprints'),
+                  _DiagnosticRow('Pending review', '$pendingReviewCount'),
+                  _DiagnosticRow(
+                    'Last SMS processing',
+                    switch (lastStatus) {
+                      'success' => 'Success',
+                      'failed' => 'Failed',
+                      _ => 'Never',
+                    },
+                  ),
+                  if (lastStatus == 'failed' && lastError != null)
+                    _DiagnosticRow('Last processing error', lastError),
+                  if (lastAt != null)
+                    _DiagnosticRow('Last run at', _formatTimestamp(lastAt)),
+                  const _DiagnosticRow('Receiver status', 'Configured'),
+                ],
+              ),
+            ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  String _formatTimestamp(DateTime dt) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} ${two(dt.hour)}:${two(dt.minute)}';
+  }
+}
+
+class _DiagnosticRow extends StatelessWidget {
+  const _DiagnosticRow(this.label, this.value);
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            flex: 2,
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

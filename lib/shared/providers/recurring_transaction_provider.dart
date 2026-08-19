@@ -101,6 +101,17 @@ class RecurringTotals {
 
 class RecurringTransactionsNotifier
     extends AsyncNotifier<List<RecurringTransaction>> {
+  /// Guards [_generateDueTransactions] against concurrent execution.
+  /// `build`/`reload`/`addRecurringTransaction`/`updateRecurringTransaction`/
+  /// `deleteRecurringTransaction`/`setActive` (e.g. two rapid taps on the
+  /// "Active" switch while an item happens to be due) can all trigger it;
+  /// without this, two overlapping calls could each see the same
+  /// not-yet-advanced due occurrence and each create a real Transaction and
+  /// mutate a wallet balance for it — mirrors the existing
+  /// `_pendingMarkPaid`/`_pendingEmiPayments`/`_transferInProgress` guards
+  /// used for the same class of risk elsewhere in this app.
+  bool _generating = false;
+
   @override
   Future<List<RecurringTransaction>> build() async {
     final repository = ref.watch(recurringTransactionRepositoryProvider);
@@ -173,65 +184,84 @@ class RecurringTransactionsNotifier
   Future<List<RecurringTransaction>> _generateDueTransactions(
     RecurringTransactionRepository repository,
   ) async {
-    final now = DateTime.now();
-    final items = await repository.getAll();
-    final transactionRepository = ref.read(transactionRepositoryProvider);
-    final walletRepository = ref.read(walletRepositoryProvider);
-    // Fetched once — the set of real wallets doesn't change across this
-    // method's iterations, only their balances do.
-    final wallets = await walletRepository.getAll();
-    var didGenerate = false;
+    if (_generating) {
+      // Another call is already generating due transactions right now.
+      // Running the loop again here could see the same not-yet-advanced
+      // due occurrence and create a second Transaction + balance mutation
+      // for it, so this returns the current persisted state untouched
+      // instead — the in-flight call is the one source of truth for this
+      // pass, and its own return value is what the caller that "loses"
+      // the race would have gotten anyway once both finish.
+      return repository.getAll();
+    }
 
-    for (final item in items) {
-      var current = item;
-      var iterations = 0;
-      // Cap iterations so a long-neglected recurring definition can't spin
-      // forever generating history; it catches up to "now" instead.
-      while (current.isDue(now) && iterations < 366) {
-        // Resolve to a real Wallet.id — never store current.accountId's raw
-        // display label on the ledger record. Falls back to the legacy
-        // synthetic mapping only for old recurring items whose accountId
-        // can't be matched to any real wallet.
-        final walletId =
-            resolveWalletIdForAccount(current.accountId, wallets) ??
-            resolveRecurringWalletId(current.accountId);
+    _generating = true;
+    try {
+      final now = DateTime.now();
+      final items = await repository.getAll();
+      final transactionRepository = ref.read(transactionRepositoryProvider);
+      final walletRepository = ref.read(walletRepositoryProvider);
+      // Fetched once — the set of real wallets doesn't change across this
+      // method's iterations, only their balances do.
+      final wallets = await walletRepository.getAll();
+      var didGenerate = false;
 
-        await transactionRepository.add(
-          Transaction(
-            id: const Uuid().v4(),
-            title: current.title,
-            amount: current.amount,
-            categoryId: current.categoryId,
-            accountId: walletId,
-            transactionType: current.transactionType,
-            paymentMethod: 'recurring',
-            note: current.note,
-            createdAt: current.nextDueDate,
-          ),
-        );
+      for (final item in items) {
+        var current = item;
+        var iterations = 0;
+        // Cap iterations so a long-neglected recurring definition can't
+        // spin forever generating history; it catches up to "now" instead.
+        while (current.isDue(now) && iterations < 366) {
+          // Resolve to a real Wallet.id — never store current.accountId's
+          // raw display label on the ledger record. Falls back to the
+          // legacy synthetic mapping only for old recurring items whose
+          // accountId can't be matched to any real wallet.
+          final walletId =
+              resolveWalletIdForAccount(current.accountId, wallets) ??
+              resolveRecurringWalletId(current.accountId);
 
-        if (current.transactionType.toLowerCase() == 'income') {
-          await walletRepository.increaseBalance(walletId, current.amount);
-        } else {
-          await walletRepository.decreaseBalance(walletId, current.amount);
+          await transactionRepository.add(
+            Transaction(
+              id: const Uuid().v4(),
+              title: current.title,
+              amount: current.amount,
+              categoryId: current.categoryId,
+              accountId: walletId,
+              transactionType: current.transactionType,
+              paymentMethod: 'recurring',
+              note: current.note,
+              createdAt: current.nextDueDate,
+            ),
+          );
+
+          if (current.transactionType.toLowerCase() == 'income') {
+            await walletRepository.increaseBalance(walletId, current.amount);
+          } else {
+            await walletRepository.decreaseBalance(walletId, current.amount);
+          }
+
+          current = current.advance(now);
+          didGenerate = true;
+          iterations++;
         }
 
-        current = current.advance(now);
-        didGenerate = true;
-        iterations++;
+        if (!identical(current, item)) {
+          await repository.update(current);
+        }
       }
 
-      if (!identical(current, item)) {
-        await repository.update(current);
+      if (didGenerate) {
+        ref.invalidate(transactionsProvider);
+        ref.invalidate(walletsProvider);
       }
-    }
 
-    if (didGenerate) {
-      ref.invalidate(transactionsProvider);
-      ref.invalidate(walletsProvider);
+      return repository.getAll();
+    } finally {
+      // Always released — including on an exception — so a single failed
+      // generation attempt can never permanently lock out every future
+      // one.
+      _generating = false;
     }
-
-    return repository.getAll();
   }
 
   Future<void> _rescheduleReminders(List<RecurringTransaction> items) async {

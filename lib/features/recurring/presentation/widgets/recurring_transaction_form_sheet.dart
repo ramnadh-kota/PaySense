@@ -167,7 +167,7 @@ class _RecurringTransactionFormSheetState
       maxChildSize: 0.95,
       builder: (context, controller) {
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
@@ -409,13 +409,13 @@ class _RecurringTransactionFormSheetState
                 if (onClear != null)
                   IconButton(
                     onPressed: onClear,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.clear_rounded,
                       color: AppColors.textSecondary,
                       size: 20,
                     ),
                   ),
-                const Icon(
+                Icon(
                   Icons.calendar_today_rounded,
                   color: AppColors.primary,
                   size: 20,

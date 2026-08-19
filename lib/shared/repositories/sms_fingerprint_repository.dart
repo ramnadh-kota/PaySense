@@ -32,6 +32,14 @@ class SmsFingerprintRepository {
     return processed.contains(fingerprint);
   }
 
+  /// How many fingerprints are currently retained — diagnostics only, never
+  /// exposes the fingerprints themselves (which are opaque hashes anyway,
+  /// never raw SMS content — see [SmsTransactionParser.buildFingerprint]).
+  int count() {
+    final processed = _box.get(_key) as List<Object?>? ?? const [];
+    return processed.length;
+  }
+
   Future<void> markProcessed(String fingerprint) async {
     final processed = (_box.get(_key) as List<Object?>? ?? const [])
         .cast<String>()

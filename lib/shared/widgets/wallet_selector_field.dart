@@ -56,23 +56,65 @@ class WalletSelectorField extends StatelessWidget {
 
 /// A compact inline message for when there are no (eligible) wallets to
 /// choose from — used consistently anywhere [WalletSelectorField] would
-/// otherwise have nothing to offer.
+/// otherwise have nothing to offer. When [onAddWallet] is given, this
+/// renders an actual "Add Wallet" action rather than leaving the user with
+/// informational text and no way forward from this screen.
 class NoWalletsMessage extends StatelessWidget {
-  const NoWalletsMessage({super.key, required this.message});
+  const NoWalletsMessage({
+    super.key,
+    required this.message,
+    this.onAddWallet,
+  });
 
   final String message;
+  final VoidCallback? onAddWallet;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        message,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No wallets yet',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+          if (onAddWallet != null) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onAddWallet,
+                icon: Icon(Icons.add_rounded, color: AppColors.primary),
+                label: const Text('Add Wallet'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

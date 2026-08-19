@@ -41,7 +41,7 @@ class DecisionCoachDialog extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.psychology_outlined,
                   size: 28,
                   color: AppColors.primary,
@@ -115,7 +115,7 @@ class DecisionCoachDialog extends StatelessWidget {
                     onPressed: () => Navigator.of(context).pop(false),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.textSecondary,
-                      side: const BorderSide(color: AppColors.divider),
+                      side: BorderSide(color: AppColors.divider),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),

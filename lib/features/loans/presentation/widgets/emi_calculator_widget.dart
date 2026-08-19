@@ -23,7 +23,7 @@ class EmiCalculatorWidget extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.calculate_rounded,
                 color: AppColors.primary,
                 size: 18,

@@ -83,7 +83,6 @@ class _AiScreenState extends ConsumerState<AiScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
               Text(
                 'Hello, $userName',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(

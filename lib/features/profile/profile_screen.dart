@@ -57,7 +57,7 @@ class ProfileScreen extends ConsumerWidget {
                       backgroundColor: AppColors.primary.withValues(
                         alpha: 0.12,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person,
                         color: AppColors.primary,
                         size: 28,

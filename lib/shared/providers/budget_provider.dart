@@ -1,7 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/shared/models/budget.dart';
+import 'package:paysense/shared/models/notification_record.dart';
+import 'package:paysense/shared/providers/notification_provider.dart';
 import 'package:paysense/shared/repositories/budget_repository.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
+import 'package:paysense/shared/utils/budget_calculator.dart';
 
 final budgetRepositoryProvider = Provider<BudgetRepository>((ref) {
   return BudgetRepository.instance;
@@ -50,7 +54,9 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
     final transactions = await ref.watch(transactionsProvider.future);
 
     await repository.refreshBudgets(transactions);
-    return repository.getAll();
+    final budgets = await repository.getAll();
+    await _notifyThresholds(budgets);
+    return budgets;
   }
 
   Future<void> reload() async {
@@ -59,7 +65,9 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
       final repository = ref.read(budgetRepositoryProvider);
       final transactions = await ref.read(transactionsProvider.future);
       await repository.refreshBudgets(transactions);
-      return repository.getAll();
+      final budgets = await repository.getAll();
+      await _notifyThresholds(budgets);
+      return budgets;
     });
   }
 
@@ -70,7 +78,9 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
       await repository.add(budget);
       final transactions = await ref.read(transactionsProvider.future);
       await repository.refreshBudgets(transactions);
-      return repository.getAll();
+      final budgets = await repository.getAll();
+      await _notifyThresholds(budgets);
+      return budgets;
     });
   }
 
@@ -81,7 +91,9 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
       await repository.update(budget);
       final transactions = await ref.read(transactionsProvider.future);
       await repository.refreshBudgets(transactions);
-      return repository.getAll();
+      final budgets = await repository.getAll();
+      await _notifyThresholds(budgets);
+      return budgets;
     });
   }
 
@@ -96,6 +108,55 @@ class BudgetsNotifier extends AsyncNotifier<List<Budget>> {
       return success;
     });
     return result.value ?? false;
+  }
+
+  /// Notifies once per budget per threshold crossing — id-keyed on
+  /// (budget, threshold, month/year) through the existing
+  /// `NotificationRepository.addIfNotExists` idempotency mechanism, so
+  /// re-running this on every rebuild/refresh (`build`/`reload`/
+  /// `addBudget`/`updateBudget` all call it) never creates a duplicate.
+  /// Near-limit (80-100%) and over-budget (>100%) are reported as the two
+  /// distinct events; "reaches exactly 100%" is the top of the near-limit
+  /// band under [BudgetCalculator]'s own thresholds, so it doesn't need a
+  /// third, separate notification to stay meaningful.
+  Future<void> _notifyThresholds(List<Budget> budgets) async {
+    final notifier = ref.read(notificationsProvider.notifier);
+    for (final budget in budgets) {
+      final status = BudgetCalculator.statusForBudget(budget);
+      final period = '${budget.year}-${budget.month}';
+
+      switch (status) {
+        case BudgetStatus.nearLimit:
+          await notifier.addIfNotExists(
+            AppNotification(
+              id: 'budget:${budget.id}:near-limit:$period',
+              title: 'Approaching budget limit',
+              message:
+                  'You\'ve used ${budget.percentageUsed.toStringAsFixed(0)}% '
+                  'of your ${budget.categoryName} budget (${budget.month}).',
+              type: NotificationType.budget.name,
+              createdAt: DateTime.now(),
+              relatedRoute: AppRoutes.budget,
+            ),
+          );
+        case BudgetStatus.overBudget:
+          final overspend = budget.spentAmount - budget.allocatedAmount;
+          await notifier.addIfNotExists(
+            AppNotification(
+              id: 'budget:${budget.id}:over-budget:$period',
+              title: 'Over budget',
+              message:
+                  'You\'re ₹${overspend.toStringAsFixed(0)} over your '
+                  '${budget.categoryName} budget (${budget.month}).',
+              type: NotificationType.budget.name,
+              createdAt: DateTime.now(),
+              relatedRoute: AppRoutes.budget,
+            ),
+          );
+        case BudgetStatus.underBudget:
+          break;
+      }
+    }
   }
 }
 

@@ -139,11 +139,11 @@ class BillCard extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                icon: Icon(Icons.edit_outlined, color: AppColors.primary),
               ),
               IconButton(
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                icon: Icon(Icons.delete_outline, color: AppColors.danger),
               ),
             ],
           ),

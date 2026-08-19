@@ -9,6 +9,7 @@ import 'package:paysense/shared/repositories/transaction_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
 import 'package:paysense/shared/widgets/decision_coach_dialog.dart';
 import 'package:paysense/shared/widgets/wallet_selector_field.dart';
+import 'package:paysense/features/wallet/presentation/add_edit_wallet_screen.dart';
 import 'package:uuid/uuid.dart';
 
 /// A premium, fast-entry expense capture screen.
@@ -207,11 +208,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
               const SizedBox(height: 12),
               if (wallets.isEmpty)
-                const NoWalletsMessage(
-                  message: 'Add an account first to record where this expense comes from.',
+                NoWalletsMessage(
+                  message: 'Add a wallet first to record where this expense comes from.',
+                  onAddWallet: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AddEditWalletScreen()),
+                  ),
                 )
               else
                 WalletSelectorField(
+                  label: 'Pay from',
                   wallets: wallets,
                   selectedWalletId: _selectedWalletId,
                   onChanged: (value) => setState(() => _selectedWalletId = value),

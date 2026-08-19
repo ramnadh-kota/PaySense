@@ -189,43 +189,49 @@ class _NotificationStyle {
 _NotificationStyle _styleFor(NotificationType type) {
   switch (type) {
     case NotificationType.bill:
-      return const _NotificationStyle(
+      return _NotificationStyle(
         icon: Icons.receipt_long_rounded,
         color: AppColors.accent,
         background: AppColors.softCoral,
       );
     case NotificationType.recurringPayment:
-      return const _NotificationStyle(
+      return _NotificationStyle(
         icon: Icons.autorenew_rounded,
         color: AppColors.primary,
         background: AppColors.lightTeal,
       );
     case NotificationType.loanPayment:
-      return const _NotificationStyle(
+      return _NotificationStyle(
         icon: Icons.account_balance_rounded,
         color: AppColors.primary,
         background: AppColors.lightTeal,
       );
     case NotificationType.goal:
-      return const _NotificationStyle(
+      return _NotificationStyle(
         icon: Icons.flag_rounded,
         color: AppColors.success,
         background: AppColors.lightTeal,
       );
     case NotificationType.financialHealth:
-      return const _NotificationStyle(
+      return _NotificationStyle(
         icon: Icons.favorite_rounded,
         color: AppColors.accent,
         background: AppColors.softCoral,
       );
     case NotificationType.smsTransaction:
-      return const _NotificationStyle(
+      return _NotificationStyle(
         icon: Icons.sms_rounded,
         color: AppColors.primary,
         background: AppColors.lightTeal,
       );
+    case NotificationType.budget:
+      return _NotificationStyle(
+        icon: Icons.pie_chart_outline_rounded,
+        color: AppColors.accent,
+        background: AppColors.softCoral,
+      );
     case NotificationType.general:
-      return const _NotificationStyle(
+      return _NotificationStyle(
         icon: Icons.notifications_rounded,
         color: AppColors.primary,
         background: AppColors.lightTeal,

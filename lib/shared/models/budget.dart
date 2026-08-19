@@ -105,13 +105,16 @@ class Budget {
     );
   }
 
+  /// Deliberately NOT clamped: [remainingAmount] goes negative once
+  /// [spentAmount] exceeds [allocatedAmount] (a true "₹2,000 over budget"
+  /// rather than a floored ₹0 that hides the overspend), and
+  /// [percentageUsed] can exceed 100 for the same reason. `allocatedAmount
+  /// <= 0` is the only case guarded against — that would otherwise divide
+  /// by zero — and is reported as 0% rather than NaN/Infinity.
   Budget updateMetrics({required double spentAmount}) {
-    final remainingAmount = (allocatedAmount - spentAmount).clamp(
-      0.0,
-      double.infinity,
-    );
+    final remainingAmount = allocatedAmount - spentAmount;
     final percentageUsed = allocatedAmount > 0
-        ? (spentAmount / allocatedAmount * 100).clamp(0.0, 100.0)
+        ? (spentAmount / allocatedAmount * 100)
         : 0.0;
     return copyWith(
       spentAmount: spentAmount,

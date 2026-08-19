@@ -5,7 +5,7 @@ import 'package:paysense/shared/providers/analytics_provider.dart';
 
 /// A brand-neutral categorical palette cycled through for pie slices/legend
 /// dots so each category gets a stable, distinct color regardless of name.
-const List<Color> _paletteColors = <Color>[
+List<Color> get _paletteColors => <Color>[
   AppColors.primary,
   AppColors.secondary,
   AppColors.warning,

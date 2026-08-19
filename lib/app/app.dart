@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/constants/app_colors.dart';
 import '../core/routes/app_router.dart';
 import '../core/routes/app_routes.dart';
 import '../core/theme/app_theme.dart';
@@ -28,8 +29,22 @@ class PaySenseApp extends StatelessWidget {
             initialRoute: AppRoutes.splash,
             onGenerateRoute: AppRouter.onGenerateRoute,
             home: const SplashScreen(),
-            builder: (context, child) =>
-                AppLockGate(child: child ?? const SizedBox.shrink()),
+            builder: (context, child) {
+              // AppColors' color getters read this to resolve
+              // light/dark — the single choke point that makes the whole
+              // app dark-mode-reactive without every screen needing to
+              // switch from `AppColors.x` to `Theme.of(context)`. The
+              // ValueKey forces a full subtree remount on a brightness
+              // flip so screens that don't otherwise depend on Theme (and
+              // so wouldn't normally rebuild) still repaint with the new
+              // colors immediately, not just on next navigation.
+              final brightness = Theme.of(context).brightness;
+              AppColors.currentBrightness = brightness;
+              return KeyedSubtree(
+                key: ValueKey(brightness),
+                child: AppLockGate(child: child ?? const SizedBox.shrink()),
+              );
+            },
           );
         },
       ),

@@ -17,6 +17,7 @@ import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/recurring/presentation/screens/recurring_screen.dart';
 import '../../features/profile/presentation/profile_setup_screen.dart';
 import '../../features/profile/profile_screen.dart';
+import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/safe_to_spend/presentation/safe_to_spend_screen.dart';
 import '../../features/settings/presentation/app_lock_pin_setup_screen.dart';
 import '../../features/settings/presentation/change_password_screen.dart';
@@ -46,6 +47,7 @@ class AppRouter {
       case AppRoutes.profileSetup:
         return MaterialPageRoute(builder: (_) => const ProfileSetupScreen());
       case AppRoutes.navigation:
+      case AppRoutes.dashboard:
         return MaterialPageRoute(builder: (_) => const NavigationScreen());
       case AppRoutes.wallet:
         return MaterialPageRoute(builder: (_) => const WalletScreen());
@@ -87,6 +89,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const SubscriptionsScreen());
       case AppRoutes.smsReview:
         return MaterialPageRoute(builder: (_) => const SmsReviewScreen());
+      case AppRoutes.reports:
+        return MaterialPageRoute(builder: (_) => const ReportsScreen());
       default:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
     }

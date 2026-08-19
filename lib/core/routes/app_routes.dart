@@ -29,4 +29,5 @@ class AppRoutes {
   static const cashFlow = '/cash-flow';
   static const subscriptions = '/subscriptions';
   static const smsReview = '/sms-review';
+  static const reports = '/reports';
 }

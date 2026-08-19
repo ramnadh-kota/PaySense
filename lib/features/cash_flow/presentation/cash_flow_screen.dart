@@ -209,7 +209,7 @@ class _MonthSummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const Divider(height: 28, color: AppColors.divider),
+          Divider(height: 28, color: AppColors.divider),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -493,7 +493,7 @@ class _SelectedDaySection extends StatelessWidget {
                 sign: '',
               ),
             ],
-            const Divider(height: 28, color: AppColors.divider),
+            Divider(height: 28, color: AppColors.divider),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

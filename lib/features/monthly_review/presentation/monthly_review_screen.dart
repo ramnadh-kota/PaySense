@@ -369,7 +369,7 @@ class _SpendingBreakdown extends StatelessWidget {
               ),
             ),
           if (review.largestTransaction != null) ...[
-            const Divider(height: 24, color: AppColors.divider),
+            Divider(height: 24, color: AppColors.divider),
             Text(
               'Largest transaction',
               style: Theme.of(
@@ -542,7 +542,7 @@ class _GoalSection extends StatelessWidget {
                     value: (goal.progressPercentage / 100).clamp(0.0, 1.0),
                     minHeight: 8,
                     backgroundColor: AppColors.background,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -597,7 +597,7 @@ class _BillsAndLoans extends StatelessWidget {
               ),
             ),
           if (review.loanSummary.activeLoans > 0) ...[
-            const Divider(height: 24, color: AppColors.divider),
+            Divider(height: 24, color: AppColors.divider),
             Row(
               children: [
                 Expanded(
@@ -970,7 +970,7 @@ class _GlobalEmptyState extends StatelessWidget {
                 ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
+                  side: BorderSide(color: AppColors.primary),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -987,7 +987,7 @@ class _GlobalEmptyState extends StatelessWidget {
                     Navigator.of(context).pushNamed(AppRoutes.budget),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
+                  side: BorderSide(color: AppColors.primary),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),

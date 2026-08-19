@@ -54,7 +54,7 @@ class GoalCard extends StatelessWidget {
                           ),
                         ),
                         if (goal.isCompleted)
-                          const Icon(
+                          Icon(
                             Icons.celebration_rounded,
                             color: AppColors.success,
                             size: 20,
@@ -73,11 +73,11 @@ class GoalCard extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                icon: Icon(Icons.edit_outlined, color: AppColors.primary),
               ),
               IconButton(
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
+                icon: Icon(Icons.delete_outline, color: AppColors.danger),
               ),
             ],
           ),

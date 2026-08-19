@@ -10,6 +10,7 @@ enum NotificationType {
   goal,
   financialHealth,
   smsTransaction,
+  budget,
   general,
 }
 

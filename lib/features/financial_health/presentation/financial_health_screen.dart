@@ -99,17 +99,17 @@ class FinancialHealthScreen extends ConsumerWidget {
                           label: 'Spending this week vs last week',
                           comparison: health.comparisons.weeklySpending,
                         ),
-                        const Divider(height: 24, color: AppColors.divider),
+                        Divider(height: 24, color: AppColors.divider),
                         _ComparisonRow(
                           label: 'Income this month vs last month',
                           comparison: health.comparisons.monthlyIncome,
                         ),
-                        const Divider(height: 24, color: AppColors.divider),
+                        Divider(height: 24, color: AppColors.divider),
                         _ComparisonRow(
                           label: 'Expenses this month vs last month',
                           comparison: health.comparisons.monthlyExpense,
                         ),
-                        const Divider(height: 24, color: AppColors.divider),
+                        Divider(height: 24, color: AppColors.divider),
                         _ComparisonRow(
                           label: 'Savings this month vs last month',
                           comparison: health.comparisons.monthlySavings,

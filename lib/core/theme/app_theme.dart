@@ -16,11 +16,17 @@ class AppTheme {
       onError: Colors.white,
       surface: AppColors.surface,
     ),
+    // A literal color, not `AppColors.textPrimary` — this ThemeData is
+    // built once and cached forever by Dart's static-field initialization,
+    // so it must not read a brightness-reactive getter (whatever
+    // AppColors.currentBrightness happened to be on first access would
+    // freeze in permanently, which is wrong for a fixed "light theme"
+    // object).
     appBarTheme: const AppBarTheme(
       elevation: 0,
       centerTitle: false,
       backgroundColor: Colors.transparent,
-      foregroundColor: AppColors.textPrimary,
+      foregroundColor: Color(0xFF1F2933),
     ),
   );
 

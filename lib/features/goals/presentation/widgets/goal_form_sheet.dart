@@ -22,6 +22,7 @@ class _GoalFormSheetState extends State<GoalFormSheet> {
 
   late GoalPreset _selectedPreset;
   late DateTime _targetDate;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -63,15 +64,28 @@ class _GoalFormSheetState extends State<GoalFormSheet> {
   }
 
   Future<void> _handleSave() async {
+    // Guards against a double-tap on "Save goal" creating two identical
+    // records — there's no confirmation dialog on this action, so this is
+    // the only thing preventing that (mirrors the in-flight guards used
+    // for Bill/Loan payments and wallet transfers elsewhere in the app).
+    if (_isSaving) {
+      return;
+    }
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     final targetAmount = double.tryParse(_targetController.text.trim()) ?? 0.0;
-    final currentAmount = double.tryParse(_currentController.text.trim()) ?? 0.0;
     if (targetAmount <= 0) {
       return;
     }
+    // An empty field only means "start at zero" for a brand-new goal.
+    // For an existing goal, leaving it blank must never silently erase
+    // already-tracked progress.
+    final currentAmount =
+        double.tryParse(_currentController.text.trim()) ??
+        widget.goal?.currentAmount ??
+        0.0;
 
     final id = widget.goal?.id ?? const Uuid().v4();
     final createdAt = widget.goal?.createdAt ?? DateTime.now();
@@ -88,7 +102,14 @@ class _GoalFormSheetState extends State<GoalFormSheet> {
       createdAt: createdAt,
     );
 
-    await widget.onSave(goal);
+    setState(() => _isSaving = true);
+    try {
+      await widget.onSave(goal);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -98,7 +119,7 @@ class _GoalFormSheetState extends State<GoalFormSheet> {
       initialChildSize: 0.85,
       builder: (context, controller) {
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.background,
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
@@ -213,7 +234,7 @@ class _GoalFormSheetState extends State<GoalFormSheet> {
                             ),
                           ],
                         ),
-                        const Icon(
+                        Icon(
                           Icons.calendar_today_rounded,
                           color: AppColors.primary,
                           size: 20,
@@ -224,7 +245,7 @@ class _GoalFormSheetState extends State<GoalFormSheet> {
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: _handleSave,
+                  onPressed: _isSaving ? null : _handleSave,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,

@@ -224,6 +224,61 @@ void main() {
       expect(result.isHighConfidence, isFalse);
     });
 
+    test(
+      '20. an OTP message quoting a pending amount is never treated as a '
+      'completed transaction, even though it mentions "debited"',
+      () {
+        final result = SmsTransactionParser.parse(
+          sender: 'HDFCBK',
+          body: 'Do not share your OTP with anyone. Rs.5,000 will be '
+              'debited from A/c XX1234 if you authorize using OTP 738291.',
+          timestamp: now,
+        );
+
+        expect(result, isNull);
+      },
+    );
+
+    test('20b. a plain OTP/verification SMS with no amount is ignored', () {
+      final result = SmsTransactionParser.parse(
+        sender: 'AX-OTP',
+        body: 'Your OTP for login is 482910. Valid for 10 minutes.',
+        timestamp: now,
+      );
+
+      expect(result, isNull);
+    });
+
+    test(
+      '21. a failed/declined transaction SMS is ignored — no real money '
+      'moved, so it must never become a transaction or a review item',
+      () {
+        final result = SmsTransactionParser.parse(
+          sender: 'HDFCBK',
+          body: 'Your transaction of Rs. 500 has failed due to '
+              'insufficient balance.',
+          timestamp: now,
+        );
+
+        expect(result, isNull);
+      },
+    );
+
+    test(
+      '21b. a genuine reversal/refund credit is still parsed (not swept up '
+      'by the failed-transaction guard, since money did move)',
+      () {
+        final result = SmsTransactionParser.parse(
+          sender: 'HDFCBK',
+          body: 'Rs. 500 credited to your account as refund reversal.',
+          timestamp: now,
+        );
+
+        expect(result, isNotNull);
+        expect(result!.direction, SmsTransactionDirection.credit);
+      },
+    );
+
     test('an ambiguous SMS with both debit and credit keywords scores low confidence', () {
       final result = SmsTransactionParser.parse(
         sender: 'HDFCBK',

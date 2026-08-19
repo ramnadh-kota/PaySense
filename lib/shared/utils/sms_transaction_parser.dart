@@ -81,6 +81,26 @@ class SmsTransactionParser {
     caseSensitive: false,
   );
 
+  /// An OTP/verification-code message can legitimately mention a pending
+  /// amount ("Rs.5000 will be debited... use OTP 123456 to authorize") —
+  /// that's a *request* for authorization, not a completed transaction. Real
+  /// post-transaction bank SMS don't themselves contain the word OTP, so
+  /// this is a safe, hard override: matching this pattern means "never a
+  /// transaction," regardless of what else the message says.
+  static final RegExp _otpPattern = RegExp(
+    r'\b(otp|one[- ]?time password|verification code|security code)\b',
+    caseSensitive: false,
+  );
+
+  /// A transaction that didn't actually happen — no real balance movement,
+  /// so it must never become a Transaction or reach review as one.
+  /// Deliberately excludes words like "reversed"/"refunded", which usually
+  /// describe a real completed credit.
+  static final RegExp _noMovementPattern = RegExp(
+    r'\b(failed|declined|unsuccessful|not processed|insufficient balance|has been rejected)\b',
+    caseSensitive: false,
+  );
+
   /// Weak signal that a message is finance-related even without a clear
   /// debit/credit verb — present alongside an amount, this still isn't
   /// enough to auto-add, but it's enough to surface for user review rather
@@ -106,6 +126,17 @@ class SmsTransactionParser {
   }) {
     final trimmedBody = body.trim();
     if (trimmedBody.isEmpty) {
+      return null;
+    }
+
+    if (_otpPattern.hasMatch(trimmedBody)) {
+      // A one-time-password prompt, even one that quotes a pending amount,
+      // is never a completed transaction — see [_otpPattern].
+      return null;
+    }
+
+    if (_noMovementPattern.hasMatch(trimmedBody)) {
+      // No real money moved — see [_noMovementPattern].
       return null;
     }
 

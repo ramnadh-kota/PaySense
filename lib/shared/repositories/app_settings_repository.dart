@@ -25,6 +25,9 @@ class AppSettingsRepository {
   static const String _walletTransactionAccountMigrationV1Key =
       'walletTransactionAccountMigrationV1';
   static const String _smsAutomationEnabledKey = 'smsAutomationEnabled';
+  static const String _smsLastProcessingStatusKey = 'smsLastProcessingStatus';
+  static const String _smsLastProcessingErrorKey = 'smsLastProcessingError';
+  static const String _smsLastProcessingAtKey = 'smsLastProcessingAt';
 
   Box get _box => Hive.box(_boxName);
 
@@ -94,6 +97,37 @@ class AppSettingsRepository {
   /// shouldn't await a full settings load just to check one flag.
   bool smsAutomationEnabled() =>
       (_box.get(_smsAutomationEnabledKey) as bool?) ?? false;
+
+  // ---- SMS processing diagnostics ----
+  //
+  // Purely observational — never read by any business logic, only by the
+  // Settings diagnostics panel so a manual real-device tester can see which
+  // pipeline stage last ran without needing raw logs. Never records SMS
+  // body/sender text, only a human-readable, pre-sanitized error string.
+
+  Future<void> recordSmsProcessingSuccess() async {
+    await _box.put(_smsLastProcessingStatusKey, 'success');
+    await _box.delete(_smsLastProcessingErrorKey);
+    await _box.put(_smsLastProcessingAtKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  Future<void> recordSmsProcessingFailure(String errorMessage) async {
+    await _box.put(_smsLastProcessingStatusKey, 'failed');
+    await _box.put(_smsLastProcessingErrorKey, errorMessage);
+    await _box.put(_smsLastProcessingAtKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  /// 'success', 'failed', or null if SMS processing has never run.
+  String? smsLastProcessingStatus() =>
+      _box.get(_smsLastProcessingStatusKey) as String?;
+
+  String? smsLastProcessingError() =>
+      _box.get(_smsLastProcessingErrorKey) as String?;
+
+  DateTime? smsLastProcessingAt() {
+    final millis = _box.get(_smsLastProcessingAtKey) as int?;
+    return millis == null ? null : DateTime.fromMillisecondsSinceEpoch(millis);
+  }
 
   AppThemeMode _themeModeFromKey(String? key) {
     switch (key) {

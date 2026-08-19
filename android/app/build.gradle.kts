@@ -15,6 +15,13 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
+    // Required for the productFlavors' resValue("string", "app_name", ...)
+    // below (per-flavor app display name) — this AGP version has it off by
+    // default.
+    buildFeatures {
+        resValues = true
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.paysense"
@@ -25,6 +32,28 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+    }
+
+    // Lets a "PaySense Test" build (applicationId com.example.paysense.dev)
+    // install side-by-side with the production app on the same device,
+    // without touching the production applicationId/name above. `namespace`
+    // (the Kotlin/Java package MainActivity.kt and SmsReceiver.kt compile
+    // into) is intentionally NOT flavor-specific — Android resolves the
+    // manifest's `.SmsReceiver`/`.MainActivity` against `namespace`, not
+    // `applicationId`, so the native SMS receiver keeps working unchanged
+    // in both flavors.
+    flavorDimensions += "environment"
+    productFlavors {
+        create("prod") {
+            dimension = "environment"
+            resValue("string", "app_name", "paysense")
+        }
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "PaySense Test")
+        }
     }
 
     buildTypes {

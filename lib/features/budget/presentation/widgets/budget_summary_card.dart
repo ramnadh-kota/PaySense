@@ -48,8 +48,10 @@ class BudgetSummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     _SummaryRow(
-                      label: 'Remaining',
-                      value: '₹${remainingBudget.toStringAsFixed(0)}',
+                      label: remainingBudget < 0 ? 'Over budget' : 'Remaining',
+                      value:
+                          '₹${remainingBudget.abs().toStringAsFixed(0)}',
+                      valueColor: remainingBudget < 0 ? AppColors.danger : null,
                     ),
                   ],
                 ),
@@ -108,10 +110,11 @@ class _ProgressCircle extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
+  const _SummaryRow({required this.label, required this.value, this.valueColor});
 
   final String label;
   final String value;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +131,7 @@ class _SummaryRow extends StatelessWidget {
           value,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+            color: valueColor ?? AppColors.textPrimary,
           ),
         ),
       ],

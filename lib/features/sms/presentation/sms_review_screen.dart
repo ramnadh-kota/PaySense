@@ -186,7 +186,7 @@ class _ReviewCard extends ConsumerWidget {
         return StatefulBuilder(
           builder: (sheetContext, setState) {
             return Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.background,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),

@@ -55,14 +55,14 @@ class WalletScreen extends ConsumerWidget {
                     icon: CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                      child: const Icon(Icons.add_rounded, color: AppColors.primary),
+                      child: Icon(Icons.add_rounded, color: AppColors.primary),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               AppCard(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 color: AppColors.primary,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,7 +92,7 @@ class WalletScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -103,7 +103,7 @@ class WalletScreen extends ConsumerWidget {
                   label: const Text('Transfer between accounts'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
+                    side: BorderSide(color: AppColors.primary),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -111,7 +111,7 @@ class WalletScreen extends ConsumerWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Text(
                 'All Wallets',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
