@@ -50,6 +50,7 @@ Future<void> _initHive(Directory dir) async {
   await Hive.openBox<RecurringTransaction>('recurring_transactions');
   await Hive.openBox<Bill>('bills');
   await Hive.openBox<Loan>('loans');
+  await Hive.openBox('app_settings');
 }
 
 void main() {

@@ -138,6 +138,17 @@ class FinancialHealthResult {
 class FinancialHealthCalculator {
   FinancialHealthCalculator._();
 
+  /// Component weights for [overallScore] — extracted as named constants
+  /// (same values, not a new formula) so FINANCIAL HEALTH TRENDS 3.0 can
+  /// reconstruct a historically-honest weighted score for a past month
+  /// without silently drifting out of sync with this calculator's own
+  /// weighting.
+  static const double savingsWeight = 0.25;
+  static const double budgetWeight = 0.20;
+  static const double goalsWeight = 0.15;
+  static const double debtWeight = 0.20;
+  static const double paymentsWeight = 0.20;
+
   static FinancialHealthResult calculate({
     required List<Transaction> transactions,
     required List<Budget> budgets,
@@ -155,8 +166,8 @@ class FinancialHealthCalculator {
         ? analytics.currentMonthIncome
         : profileMonthlyIncome;
 
-    final savingsScore = _savingsScore(analytics.savingsRate, analytics.currentMonthIncome);
-    final budgetScore = _budgetScore(budgets);
+    final savingsScore = FinancialHealthCalculator.savingsScore(analytics.savingsRate, analytics.currentMonthIncome);
+    final budgetScore = FinancialHealthCalculator.budgetScore(budgets);
     final goalsScore = _goalsScore(goals);
     final loanAnalytics = buildLoanAnalytics(
       loans,
@@ -167,11 +178,11 @@ class FinancialHealthCalculator {
     final debtScore = _debtScore(loans, loanAnalytics.monthlyEmiBurdenPercentage, effectiveMonthlyIncome);
     final paymentsScore = _paymentsScore(bills, referenceNow);
 
-    final overallScore = (savingsScore * 0.25 +
-            budgetScore * 0.20 +
-            goalsScore * 0.15 +
-            debtScore * 0.20 +
-            paymentsScore * 0.20)
+    final overallScore = (savingsScore * savingsWeight +
+            budgetScore * budgetWeight +
+            goalsScore * goalsWeight +
+            debtScore * debtWeight +
+            paymentsScore * paymentsWeight)
         .round()
         .clamp(0, 100);
 
@@ -208,7 +219,10 @@ class FinancialHealthCalculator {
 
   // ---- Component scores ----
 
-  static double _savingsScore(double savingsRate, double currentMonthIncome) {
+  /// Public (not `_savingsScore`) — see [savingsWeight]'s doc comment for
+  /// why: this exact formula is reused, never duplicated, for a past
+  /// month's reconstructed score in FINANCIAL HEALTH TRENDS 3.0.
+  static double savingsScore(double savingsRate, double currentMonthIncome) {
     if (currentMonthIncome <= 0) {
       // No income recorded this month — can't fairly judge savings behavior.
       return 60;
@@ -217,7 +231,8 @@ class FinancialHealthCalculator {
     return (savingsRate / 30 * 100).clamp(0, 100);
   }
 
-  static double _budgetScore(List<Budget> budgets) {
+  /// Public — see [savingsScore]'s doc comment.
+  static double budgetScore(List<Budget> budgets) {
     if (budgets.isEmpty) {
       return 60; // Neutral: nothing to assess, not penalized.
     }

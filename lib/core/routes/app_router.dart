@@ -8,6 +8,7 @@ import '../../features/bills/presentation/screens/bills_screen.dart';
 import '../../features/budget/presentation/screens/budget_screen.dart';
 import '../../features/cash_flow/presentation/cash_flow_screen.dart';
 import '../../features/financial_health/presentation/financial_health_screen.dart';
+import '../../features/financial_planning/presentation/financial_planning_screen.dart';
 import '../../features/goals/presentation/screens/goals_screen.dart';
 import '../../features/loans/presentation/screens/loans_screen.dart';
 import '../../features/monthly_review/presentation/monthly_review_screen.dart';
@@ -17,6 +18,9 @@ import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/recurring/presentation/screens/recurring_screen.dart';
 import '../../features/profile/presentation/profile_setup_screen.dart';
 import '../../features/profile/profile_screen.dart';
+import '../../features/tax/presentation/tax_planner_screen.dart';
+import '../../features/affordability/presentation/affordability_screen.dart';
+import '../../features/financial_trends/presentation/financial_health_trends_screen.dart';
 import '../../features/reports/presentation/reports_screen.dart';
 import '../../features/safe_to_spend/presentation/safe_to_spend_screen.dart';
 import '../../features/settings/presentation/app_lock_pin_setup_screen.dart';
@@ -91,6 +95,14 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const SmsReviewScreen());
       case AppRoutes.reports:
         return MaterialPageRoute(builder: (_) => const ReportsScreen());
+      case AppRoutes.financialPlanning:
+        return MaterialPageRoute(builder: (_) => const FinancialPlanningScreen());
+      case AppRoutes.taxPlanner:
+        return MaterialPageRoute(builder: (_) => const TaxPlannerScreen());
+      case AppRoutes.affordability:
+        return MaterialPageRoute(builder: (_) => const AffordabilityScreen());
+      case AppRoutes.financialHealthTrends:
+        return MaterialPageRoute(builder: (_) => const FinancialHealthTrendsScreen());
       default:
         return MaterialPageRoute(builder: (_) => const SplashScreen());
     }

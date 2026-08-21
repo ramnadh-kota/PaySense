@@ -9,6 +9,7 @@ import 'package:paysense/shared/models/loan.dart';
 import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/sms_review_item.dart';
+import 'package:paysense/shared/models/tax_settings.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/models/transaction.dart';
@@ -52,6 +53,9 @@ Future<void> main() async {
   if (!Hive.isAdapterRegistered(10)) {
     Hive.registerAdapter(SmsReviewItemAdapter());
   }
+  if (!Hive.isAdapterRegistered(11)) {
+    Hive.registerAdapter(TaxSettingsAdapter());
+  }
 
   await Hive.openBox<UserProfile>('user_profile');
   await Hive.openBox<Wallet>('wallets');
@@ -69,6 +73,7 @@ Future<void> main() async {
   // Untyped — just a single bounded list of processed SMS fingerprints,
   // see SmsFingerprintRepository.
   await Hive.openBox('sms_processed_fingerprints');
+  await Hive.openBox<TaxSettings>('tax_settings');
 
   await NotificationService.instance.initialize();
 

@@ -9,7 +9,12 @@ import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/providers/bill_provider.dart';
 import 'package:paysense/shared/providers/budget_provider.dart';
+import 'package:paysense/shared/providers/financial_action_provider.dart';
+import 'package:paysense/shared/utils/financial_action_engine.dart';
 import 'package:paysense/shared/providers/financial_health_provider.dart';
+import 'package:paysense/shared/providers/financial_health_trends_provider.dart';
+import 'package:paysense/shared/utils/financial_health_trends_calculator.dart' show OverallTrajectory;
+import 'package:paysense/shared/providers/financial_planning_provider.dart';
 import 'package:paysense/shared/providers/goal_provider.dart';
 import 'package:paysense/shared/providers/loan_provider.dart';
 import 'package:paysense/shared/providers/notification_provider.dart';
@@ -19,7 +24,7 @@ import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/utils/currency_formatter.dart';
 import 'package:paysense/shared/utils/dashboard_helpers.dart';
 import 'package:paysense/shared/utils/financial_health_calculator.dart'
-    show FinancialHealthResult, FinancialInsight, FinancialInsightType;
+    show FinancialHealthResult, FinancialInsightType;
 import 'package:paysense/shared/widgets/app_card.dart';
 import '../../core/routes/app_routes.dart';
 import '../transactions/presentation/add_expense_screen.dart';
@@ -46,7 +51,6 @@ class DashboardScreen extends ConsumerWidget {
     final upcomingPayments = ref.watch(upcomingPaymentsProvider);
     final upcomingBills = ref.watch(upcomingBillsProvider);
     final loanSummary = ref.watch(loanSummaryProvider);
-    final financialHealth = ref.watch(financialHealthProvider);
     ref.listen<FinancialHealthResult>(financialHealthProvider, (
       previous,
       next,
@@ -84,10 +88,7 @@ class DashboardScreen extends ConsumerWidget {
               upcomingPayments: upcomingPayments,
               upcomingBills: upcomingBills,
               loanSummary: loanSummary,
-              financialHealthInsight: financialHealth.hasSufficientData &&
-                      financialHealth.insights.isNotEmpty
-                  ? financialHealth.insights.first
-                  : null,
+              planningReadinessScore: ref.watch(financialPlanningProvider).readinessScore,
               now: now,
             );
           },
@@ -124,7 +125,7 @@ class DashboardScreen extends ConsumerWidget {
     required List<RecurringTransaction> upcomingPayments,
     required List<Bill> upcomingBills,
     required LoanSummary loanSummary,
-    required FinancialInsight? financialHealthInsight,
+    required int planningReadinessScore,
     required DateTime now,
     List<Transaction> transactions = const <Transaction>[],
   }) {
@@ -436,6 +437,46 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                       Text(
                         'Where your money went, and how it compares →',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          AppCard(
+            padding: const EdgeInsets.all(16),
+            onTap: () =>
+                Navigator.of(context).pushNamed(AppRoutes.financialPlanning),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightTeal,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.insights_rounded, color: AppColors.primary),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Financial Planning',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        "You're $planningReadinessScore% "
+                        'financially prepared — View plan →',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textSecondary,
                         ),
@@ -910,14 +951,16 @@ class DashboardScreen extends ConsumerWidget {
             ),
           const SizedBox(height: 24),
           Text(
-            'Smart Insight',
+            'Your Financial Actions',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          _SmartInsightCard(insight: financialHealthInsight),
+          const _FinancialActionsSection(),
+          const SizedBox(height: 10),
+          const _FinancialTrendEntryLine(),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1102,15 +1145,21 @@ class _NotificationBell extends ConsumerWidget {
   }
 }
 
-class _SmartInsightCard extends StatelessWidget {
-  const _SmartInsightCard({required this.insight});
-
-  final FinancialInsight? insight;
+/// FINANCIAL ACTION ENGINE 1.0 (PHASE 8/11) — upgrades the dashboard's
+/// former single-insight card into up to 3 prioritized, actionable cards.
+/// This REPLACES `_SmartInsightCard` in the exact same dashboard slot
+/// rather than adding a new section alongside it — the two communicated
+/// overlapping information ("what's going on with my money"), and
+/// `FinancialActionPlan` is a strict superset (richer, prioritized,
+/// data-backed) of what the old single insight showed.
+class _FinancialActionsSection extends ConsumerWidget {
+  const _FinancialActionsSection();
 
   @override
-  Widget build(BuildContext context) {
-    final current = insight;
-    if (current == null) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref.watch(financialActionPlanProvider);
+
+    if (plan.isEmpty) {
       return AppCard(
         padding: const EdgeInsets.all(20),
         child: Row(
@@ -1119,7 +1168,7 @@ class _SmartInsightCard extends StatelessWidget {
             const SizedBox(width: 14),
             Expanded(
               child: Text(
-                'Keep tracking your spending to unlock personalized insights.',
+                'Keep tracking your spending to unlock personalized actions.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -1130,35 +1179,155 @@ class _SmartInsightCard extends StatelessWidget {
       );
     }
 
-    final color = switch (current.type) {
-      FinancialInsightType.positive => AppColors.success,
-      FinancialInsightType.tip => AppColors.primary,
-      FinancialInsightType.warning => AppColors.accent,
-    };
-    final icon = switch (current.type) {
-      FinancialInsightType.positive => Icons.emoji_events_rounded,
-      FinancialInsightType.tip => Icons.lightbulb_outline_rounded,
-      FinancialInsightType.warning => Icons.warning_amber_rounded,
-    };
-    final background = switch (current.type) {
-      FinancialInsightType.warning => AppColors.softCoral,
-      _ => AppColors.lightTeal,
-    };
+    return Column(
+      children: [
+        for (final action in plan.actions) ...[
+          _FinancialActionCard(action: action),
+          if (action != plan.actions.last) const SizedBox(height: 10),
+        ],
+      ],
+    );
+  }
+}
+
+/// FINANCIAL HEALTH TRENDS 3.0 — PHASE 16's "ONE compact entry point",
+/// integrated directly under the existing "Your Financial Actions"
+/// section rather than adding a separate card, per the milestone's own
+/// "reuse this area instead of adding unnecessary cards" instruction.
+class _FinancialTrendEntryLine extends ConsumerWidget {
+  const _FinancialTrendEntryLine();
+
+  (String, IconData, Color) _copyFor(OverallTrajectory trajectory) {
+    switch (trajectory) {
+      case OverallTrajectory.stronglyImproving:
+      case OverallTrajectory.improving:
+        return ('Your financial health is improving', Icons.trending_up_rounded, AppColors.success);
+      case OverallTrajectory.declining:
+        return ('Your financial health needs attention', Icons.trending_down_rounded, AppColors.danger);
+      case OverallTrajectory.mixed:
+        return ('Your finances show mixed signals', Icons.swap_vert_rounded, AppColors.warning);
+      case OverallTrajectory.stable:
+        return ('Your financial health is steady', Icons.trending_flat_rounded, AppColors.textSecondary);
+      case OverallTrajectory.insufficientData:
+        return ('See your financial journey', Icons.auto_graph_rounded, AppColors.primary);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trajectory = ref.watch(financialHealthTrendsProvider).trajectory;
+    final (title, icon, color) = _copyFor(trajectory);
+
+    return InkWell(
+      onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialHealthTrends),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              'View journey →',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FinancialActionCard extends StatelessWidget {
+  const _FinancialActionCard({required this.action});
+
+  final FinancialAction action;
+
+  // Icon + a small translucent chip tint behind it only — never the whole
+  // card's background. Matches the established pattern from
+  // _WhatIfResultCard/_TaxOutcomeCard/_FinancialPlanningCard: lightTeal/
+  // softCoral are translucent overlays meant for a small chip, not an
+  // opaque full-card background (which loses contrast badly in dark mode
+  // — see financial_action_affordability_dark_mode_test.dart).
+  (IconData, Color, Color) _visualsFor(BuildContext context) {
+    switch (action.priority) {
+      case ActionPriority.critical:
+      case ActionPriority.high:
+        return (Icons.warning_amber_rounded, AppColors.danger, AppColors.softCoral);
+      case ActionPriority.medium:
+        return (Icons.info_outline_rounded, AppColors.warning, AppColors.lightTeal);
+      case ActionPriority.positive:
+        return (Icons.emoji_events_rounded, AppColors.success, AppColors.lightTeal);
+    }
+  }
+
+  String _routeFor(FinancialAction action) {
+    switch (action.category) {
+      case ActionCategory.overspending:
+      case ActionCategory.budget:
+        return AppRoutes.budget;
+      case ActionCategory.debt:
+        return AppRoutes.loans;
+      case ActionCategory.subscriptions:
+        return AppRoutes.subscriptions;
+      case ActionCategory.emergencyFund:
+      case ActionCategory.goals:
+      case ActionCategory.savings:
+      case ActionCategory.cashFlow:
+      case ActionCategory.tax:
+      case ActionCategory.positiveProgress:
+        return AppRoutes.financialPlanning;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, iconColor, chipTint) = _visualsFor(context);
 
     return AppCard(
-      padding: const EdgeInsets.all(20),
-      color: background,
+      padding: const EdgeInsets.all(16),
+      onTap: () => Navigator.of(context).pushNamed(_routeFor(action)),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 14),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: chipTint, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              current.message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  action.explanation,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${action.recommendedAction} →',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

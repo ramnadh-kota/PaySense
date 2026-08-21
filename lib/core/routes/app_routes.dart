@@ -30,4 +30,8 @@ class AppRoutes {
   static const subscriptions = '/subscriptions';
   static const smsReview = '/sms-review';
   static const reports = '/reports';
+  static const financialPlanning = '/financial-planning';
+  static const taxPlanner = '/tax-planner';
+  static const affordability = '/affordability';
+  static const financialHealthTrends = '/financial-health-trends';
 }

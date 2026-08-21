@@ -51,6 +51,53 @@ class FinancialContext {
   final int paymentHealthScore;
   final String topFinancialInsight;
 
+  /// Aggregated figures from [FinancialPlanningCalculator] — readiness
+  /// score, emergency fund target/current/remaining, commitment load,
+  /// debt-to-income, top recommendation. See
+  /// [FinancialContextBuilder._planningContextMap] for the exact shape.
+  /// Empty map when the question category didn't call for it (see
+  /// [FinancialQuestionCategory]/[classifyQuestion]) — never partially
+  /// filled.
+  final Map<String, dynamic> planningContext;
+
+  /// Aggregated figures from [SafeToSpendCalculator] — available money,
+  /// upcoming commitments, safe-to-spend, daily safe-to-spend, shortfall.
+  final Map<String, dynamic> safeToSpendContext;
+
+  /// Aggregated figures from [CashFlowCalculator.summarizeUpcomingWindow] —
+  /// upcoming income/expense over the next 30 days.
+  final Map<String, dynamic> cashFlowContext;
+
+  /// Aggregated figures from [SubscriptionCalculator] — total monthly/
+  /// annual subscription cost, active count, most expensive subscription's
+  /// name only (never its account/payment details).
+  final Map<String, dynamic> subscriptionsContext;
+
+  /// Aggregated figures from [ReportsCalculator] for the current month —
+  /// top spending categories (name + amount + percentage only), and the
+  /// calculator's own plain-language insights. Never raw transaction rows.
+  final Map<String, dynamic> reportsContext;
+
+  /// FINANCIAL ACTION ENGINE 1.0 — up to 3 prioritized actions from
+  /// [FinancialActionEngine], the same list the Dashboard's "Your
+  /// Financial Actions" section shows. Only priority/category/title/
+  /// explanation/recommendation/supporting figures — never a raw wallet or
+  /// transaction row.
+  final Map<String, dynamic> financialActionsContext;
+
+  /// A general, no-specific-amount affordability anchor — reuses
+  /// [SafeToSpendCalculator]'s already-computed figures. A specific
+  /// purchase question produces its own richer `affordabilityScenario`
+  /// (see AffordabilityOrchestrator), injected separately by
+  /// [AiChatNotifier] — this is deliberately not a duplicate of that.
+  final Map<String, dynamic> affordabilityContext;
+
+  /// FINANCIAL HEALTH TRENDS 3.0 — aggregated scores/percentages/totals/
+  /// period labels/insight text from
+  /// [FinancialHealthTrendsCalculator], never a raw wallet/transaction
+  /// row.
+  final Map<String, dynamic> financialHealthTrendsContext;
+
   const FinancialContext({
     required this.fullName,
     required this.monthlyIncome,
@@ -97,6 +144,14 @@ class FinancialContext {
     required this.debtHealthScore,
     required this.paymentHealthScore,
     required this.topFinancialInsight,
+    this.planningContext = const {},
+    this.safeToSpendContext = const {},
+    this.cashFlowContext = const {},
+    this.subscriptionsContext = const {},
+    this.reportsContext = const {},
+    this.financialActionsContext = const {},
+    this.affordabilityContext = const {},
+    this.financialHealthTrendsContext = const {},
   });
 
   FinancialContext copyWith({
@@ -145,6 +200,14 @@ class FinancialContext {
     int? debtHealthScore,
     int? paymentHealthScore,
     String? topFinancialInsight,
+    Map<String, dynamic>? planningContext,
+    Map<String, dynamic>? safeToSpendContext,
+    Map<String, dynamic>? cashFlowContext,
+    Map<String, dynamic>? subscriptionsContext,
+    Map<String, dynamic>? reportsContext,
+    Map<String, dynamic>? financialActionsContext,
+    Map<String, dynamic>? affordabilityContext,
+    Map<String, dynamic>? financialHealthTrendsContext,
   }) {
     return FinancialContext(
       fullName: fullName ?? this.fullName,
@@ -204,6 +267,14 @@ class FinancialContext {
       debtHealthScore: debtHealthScore ?? this.debtHealthScore,
       paymentHealthScore: paymentHealthScore ?? this.paymentHealthScore,
       topFinancialInsight: topFinancialInsight ?? this.topFinancialInsight,
+      planningContext: planningContext ?? this.planningContext,
+      safeToSpendContext: safeToSpendContext ?? this.safeToSpendContext,
+      cashFlowContext: cashFlowContext ?? this.cashFlowContext,
+      subscriptionsContext: subscriptionsContext ?? this.subscriptionsContext,
+      reportsContext: reportsContext ?? this.reportsContext,
+      financialActionsContext: financialActionsContext ?? this.financialActionsContext,
+      affordabilityContext: affordabilityContext ?? this.affordabilityContext,
+      financialHealthTrendsContext: financialHealthTrendsContext ?? this.financialHealthTrendsContext,
     );
   }
 
@@ -254,6 +325,14 @@ class FinancialContext {
       'debtHealthScore': debtHealthScore,
       'paymentHealthScore': paymentHealthScore,
       'topFinancialInsight': topFinancialInsight,
+      'planningContext': planningContext,
+      'safeToSpendContext': safeToSpendContext,
+      'cashFlowContext': cashFlowContext,
+      'subscriptionsContext': subscriptionsContext,
+      'reportsContext': reportsContext,
+      'financialActionsContext': financialActionsContext,
+      'affordabilityContext': affordabilityContext,
+      'financialHealthTrendsContext': financialHealthTrendsContext,
     };
   }
 
@@ -576,6 +655,17 @@ class FinancialContext {
     );
     final topFinancialInsight = rawTopFinancialInsight.toString();
 
+    // These 5 fields were added after fromMap's original exhaustive
+    // required-field design (see file-level note: fromMap/copyWith are not
+    // called anywhere in the app today, only toMap() is, for the outgoing
+    // HTTP request) — read leniently rather than expanding the ~90-line
+    // required-field-check block above for fields nothing currently
+    // round-trips through this constructor.
+    Map<String, dynamic> mapField(String key) {
+      final value = map[key];
+      return value is Map ? Map<String, dynamic>.from(value) : const {};
+    }
+
     return FinancialContext(
       fullName: fullName,
       monthlyIncome: monthlyIncome,
@@ -622,6 +712,14 @@ class FinancialContext {
       debtHealthScore: debtHealthScore,
       paymentHealthScore: paymentHealthScore,
       topFinancialInsight: topFinancialInsight,
+      planningContext: mapField('planningContext'),
+      safeToSpendContext: mapField('safeToSpendContext'),
+      cashFlowContext: mapField('cashFlowContext'),
+      subscriptionsContext: mapField('subscriptionsContext'),
+      reportsContext: mapField('reportsContext'),
+      financialActionsContext: mapField('financialActionsContext'),
+      affordabilityContext: mapField('affordabilityContext'),
+      financialHealthTrendsContext: mapField('financialHealthTrendsContext'),
     );
   }
 }

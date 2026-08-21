@@ -1,14 +1,38 @@
+import 'package:paysense/features/ai/models/affordability_outcome.dart';
+import 'package:paysense/features/ai/models/tax_outcome.dart';
+import 'package:paysense/features/ai/models/what_if_result.dart';
+
 class ChatMessage {
   final String id;
   final String text;
   final bool isUser;
   final DateTime createdAt;
 
+  /// Set only on an assistant reply that followed a deterministic what-if
+  /// calculation (PHASE 14) — renders the structured result card alongside
+  /// the AI's explanation. Purely in-memory UI state, never persisted/
+  /// exported: chat history isn't Hive-backed, so this doesn't need to
+  /// round-trip through [toMap]/[fromMap].
+  final WhatIfResult? whatIfResult;
+
+  /// Set only on an assistant reply that followed a deterministic tax
+  /// calculation or regime comparison (INDIA TAX PLANNER 1.0, PHASE 14) —
+  /// same purely in-memory UI-state treatment as [whatIfResult].
+  final TaxOutcome? taxOutcome;
+
+  /// Set only on an assistant reply that followed a deterministic
+  /// affordability calculation (FINANCIAL ACTION ENGINE 1.0, PHASE 9) —
+  /// same purely in-memory UI-state treatment as [whatIfResult].
+  final AffordabilityOutcome? affordabilityOutcome;
+
   const ChatMessage({
     required this.id,
     required this.text,
     required this.isUser,
     required this.createdAt,
+    this.whatIfResult,
+    this.taxOutcome,
+    this.affordabilityOutcome,
   });
 
   ChatMessage copyWith({
@@ -16,12 +40,18 @@ class ChatMessage {
     String? text,
     bool? isUser,
     DateTime? createdAt,
+    WhatIfResult? whatIfResult,
+    TaxOutcome? taxOutcome,
+    AffordabilityOutcome? affordabilityOutcome,
   }) {
     return ChatMessage(
       id: id ?? this.id,
       text: text ?? this.text,
       isUser: isUser ?? this.isUser,
       createdAt: createdAt ?? this.createdAt,
+      whatIfResult: whatIfResult ?? this.whatIfResult,
+      taxOutcome: taxOutcome ?? this.taxOutcome,
+      affordabilityOutcome: affordabilityOutcome ?? this.affordabilityOutcome,
     );
   }
 

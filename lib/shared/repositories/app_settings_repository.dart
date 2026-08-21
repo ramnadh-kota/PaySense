@@ -28,6 +28,9 @@ class AppSettingsRepository {
   static const String _smsLastProcessingStatusKey = 'smsLastProcessingStatus';
   static const String _smsLastProcessingErrorKey = 'smsLastProcessingError';
   static const String _smsLastProcessingAtKey = 'smsLastProcessingAt';
+  static const String _emergencyFundEligibleWalletIdsKey =
+      'emergencyFundEligibleWalletIds';
+  static const String _emergencyFundTargetMonthsKey = 'emergencyFundTargetMonths';
 
   Box get _box => Hive.box(_boxName);
 
@@ -127,6 +130,33 @@ class AppSettingsRepository {
   DateTime? smsLastProcessingAt() {
     final millis = _box.get(_smsLastProcessingAtKey) as int?;
     return millis == null ? null : DateTime.fromMillisecondsSinceEpoch(millis);
+  }
+
+  // ---- Financial Planning: Emergency Fund source ----
+  //
+  // Deliberately the smallest possible setting for Feature 3 of Financial
+  // Planning 2.0: which wallets count as "emergency fund eligible". Never
+  // guessed from wallet type/name — the user explicitly opts wallets in.
+  // Distinguishes "never configured" (null) from "explicitly configured to
+  // zero wallets" (empty list) so the UI can tell the difference between
+  // "needs setup" and "user chose none".
+
+  /// Null when the user has never configured this. Never touches wallet
+  /// balances — purely a list of ids read back by the planning calculator.
+  List<String>? emergencyFundEligibleWalletIds() {
+    final raw = _box.get(_emergencyFundEligibleWalletIdsKey) as List<Object?>?;
+    return raw?.cast<String>();
+  }
+
+  Future<void> setEmergencyFundEligibleWalletIds(List<String> walletIds) async {
+    await _box.put(_emergencyFundEligibleWalletIdsKey, walletIds);
+  }
+
+  int emergencyFundTargetMonths() =>
+      (_box.get(_emergencyFundTargetMonthsKey) as int?) ?? 6;
+
+  Future<void> setEmergencyFundTargetMonths(int months) async {
+    await _box.put(_emergencyFundTargetMonthsKey, months);
   }
 
   AppThemeMode _themeModeFromKey(String? key) {
