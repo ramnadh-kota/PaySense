@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import '../models/notification_record.dart';
+import '../services/account_scope.dart';
 
 class NotificationRepository {
   NotificationRepository._();
@@ -9,7 +10,9 @@ class NotificationRepository {
 
   static const String _boxName = 'app_notifications';
 
-  Box<AppNotification> get _box => Hive.box<AppNotification>(_boxName);
+  Box<AppNotification> get _box => Hive.box<AppNotification>(
+    AccountScope.instance.scopedBoxName(_boxName),
+  );
 
   Future<List<AppNotification>> getAll() async {
     final all = _box.values.toList()

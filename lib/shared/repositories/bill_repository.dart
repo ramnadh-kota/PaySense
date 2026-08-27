@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:paysense/shared/models/bill.dart';
+import 'package:paysense/shared/services/account_scope.dart';
 
 class BillRepository {
   BillRepository._();
@@ -8,7 +9,8 @@ class BillRepository {
 
   static const String _boxName = 'bills';
 
-  Box<Bill> get _box => Hive.box<Bill>(_boxName);
+  Box<Bill> get _box =>
+      Hive.box<Bill>(AccountScope.instance.scopedBoxName(_boxName));
 
   Future<List<Bill>> getAll() async {
     return List<Bill>.unmodifiable(_box.values.toList());

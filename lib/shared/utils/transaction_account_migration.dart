@@ -109,9 +109,11 @@ class TransactionAccountMigrationRunner {
     alreadyCorrectCount: 0,
   );
 
-  static Future<TransactionAccountMigrationResult> runIfNeeded() async {
-    final alreadyComplete =
-        await AppSettingsRepository.instance.isWalletTransactionAccountMigrationV1Complete();
+  static Future<TransactionAccountMigrationResult> runIfNeeded({
+    required String accountId,
+  }) async {
+    final alreadyComplete = await AppSettingsRepository.instance
+        .isWalletTransactionAccountMigrationV1Complete(accountId: accountId);
     if (alreadyComplete) {
       return _noOpResult;
     }
@@ -127,7 +129,8 @@ class TransactionAccountMigrationRunner {
       await TransactionRepository.instance.update(transaction);
     }
 
-    await AppSettingsRepository.instance.completeWalletTransactionAccountMigrationV1();
+    await AppSettingsRepository.instance
+        .completeWalletTransactionAccountMigrationV1(accountId: accountId);
     return result;
   }
 }

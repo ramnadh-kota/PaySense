@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:hive/hive.dart';
 
 import '../models/wallet.dart';
+import '../services/account_scope.dart';
 
 class WalletRepository {
   WalletRepository._();
@@ -11,7 +12,8 @@ class WalletRepository {
 
   static const String _boxName = 'wallets';
 
-  Box<Wallet> get _box => Hive.box<Wallet>(_boxName);
+  Box<Wallet> get _box =>
+      Hive.box<Wallet>(AccountScope.instance.scopedBoxName(_boxName));
 
   Future<List<Wallet>> getAll() async {
     return List<Wallet>.unmodifiable(_box.values.toList());

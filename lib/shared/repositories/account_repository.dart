@@ -29,4 +29,8 @@ class AccountRepository {
       await _box.put(account.email, account);
     }
   }
+
+  Future<void> delete(String email) async {
+    await _box.delete(normalizeEmail(email));
+  }
 }

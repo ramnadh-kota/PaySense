@@ -29,14 +29,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
-    // Fire-and-forget: flushes whatever the native SMS receiver queued up
-    // while the app wasn't running. Never awaited/blocking — a failure or
-    // slow platform-channel round trip here must never delay app startup.
-    // Only runs at all once the user has explicitly turned this on.
-    if (AppSettingsRepository.instance.smsAutomationEnabled()) {
-      unawaited(_flushPendingSms());
-    }
-
     final isFirstLaunch = await ref.read(isFirstLaunchProvider.future);
 
     if (!mounted) {
@@ -48,10 +40,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
+    // Resolved (and, if a session exists, activates that account's data
+    // namespace via AccountScope) before anything below touches
+    // account-scoped storage — including the SMS flush, which reads/writes
+    // transactions and must never run against no namespace or the wrong one.
     final authState = await ref.read(authProvider.future);
 
     if (!mounted) {
       return;
+    }
+
+    // Fire-and-forget: flushes whatever the native SMS receiver queued up
+    // while the app wasn't running. Never awaited/blocking — a failure or
+    // slow platform-channel round trip here must never delay app startup.
+    // Only runs once the user is signed in (so an account namespace is
+    // active) and has explicitly turned this on.
+    if (authState.isAuthenticated &&
+        AppSettingsRepository.instance.smsAutomationEnabled()) {
+      unawaited(_flushPendingSms());
     }
 
     Navigator.of(context).pushReplacementNamed(

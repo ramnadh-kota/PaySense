@@ -6,7 +6,9 @@ import '../models/auth_state.dart';
 import '../models/user_profile.dart';
 import '../repositories/account_repository.dart';
 import '../repositories/auth_session_repository.dart';
+import '../services/account_scope.dart';
 import '../utils/password_hasher.dart';
+import '../utils/transaction_account_migration.dart';
 import 'user_profile_provider.dart';
 
 /// Thrown for user-facing authentication failures (invalid credentials,
@@ -48,7 +50,17 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       return const AuthState.unauthenticated();
     }
 
+    await _activateAccountData(account.id);
     return AuthState.authenticated(account);
+  }
+
+  /// Opens (and, on the very first activation ever, migrates legacy
+  /// pre-isolation data into) [accountId]'s own namespace, then runs the
+  /// existing per-account transaction/wallet-id cleanup against it. Must
+  /// happen before any screen for this account can read financial data.
+  Future<void> _activateAccountData(String accountId) async {
+    await AccountScope.instance.activate(accountId);
+    await TransactionAccountMigrationRunner.runIfNeeded(accountId: accountId);
   }
 
   /// Creates a new local account and signs the user in. Also eagerly creates
@@ -81,6 +93,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       updatedAt: now,
     );
     await accountRepo.add(account);
+    await _activateAccountData(account.id);
 
     final profileRepo = ref.read(userProfileRepositoryProvider);
     final existingProfile = await profileRepo.getProfile();
@@ -117,6 +130,7 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       throw AuthException('Invalid email or password.');
     }
 
+    await _activateAccountData(account.id);
     await ref.read(authSessionRepositoryProvider).setSession(normalizedEmail);
     state = AsyncValue.data(AuthState.authenticated(account));
   }
@@ -157,6 +171,36 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   /// transactions, etc.) is never touched.
   Future<void> logout() async {
     await ref.read(authSessionRepositoryProvider).clearSession();
+    AccountScope.instance.deactivate();
+    state = const AsyncValue.data(AuthState.unauthenticated());
+  }
+
+  /// Permanently deletes the currently authenticated account: verifies
+  /// [password], then purges only that account's own namespaced data
+  /// (transactions, wallets, budgets, goals, bills, loans, recurring
+  /// transactions, notifications, SMS review/fingerprint data, tax
+  /// settings, profile) and removes the account itself. Every other
+  /// account's data on this device is untouched — [AccountScope] only ever
+  /// deletes boxes namespaced to this specific account id.
+  Future<void> deleteAccount({required String password}) async {
+    final currentAccount = state.value?.account;
+    if (currentAccount == null) {
+      throw AuthException('You must be logged in to delete your account.');
+    }
+
+    final isValid = PasswordHasher.verify(
+      password,
+      currentAccount.passwordSalt,
+      currentAccount.passwordHash,
+    );
+    if (!isValid) {
+      throw AuthException('Incorrect password.');
+    }
+
+    await AccountScope.instance.purgeAccountData(currentAccount.id);
+    await ref.read(accountRepositoryProvider).delete(currentAccount.email);
+    await ref.read(authSessionRepositoryProvider).clearSession();
+
     state = const AsyncValue.data(AuthState.unauthenticated());
   }
 }

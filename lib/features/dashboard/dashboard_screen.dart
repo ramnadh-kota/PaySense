@@ -31,6 +31,7 @@ import '../transactions/presentation/add_expense_screen.dart';
 import '../transactions/presentation/add_income_screen.dart';
 import 'widgets/cash_flow_card.dart';
 import 'widgets/financial_health_card.dart';
+import 'widgets/fun_funds_card.dart';
 import 'widgets/quick_action_button.dart';
 import 'widgets/safe_to_spend_card.dart';
 import 'widgets/subscriptions_card.dart';
@@ -319,6 +320,8 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           SafeToSpendCard(currencyFormatter: currencyFormatter),
+          const SizedBox(height: 12),
+          FunFundsCard(currencyFormatter: currencyFormatter),
           const SizedBox(height: 12),
           CashFlowCard(currencyFormatter: currencyFormatter),
           const SizedBox(height: 12),

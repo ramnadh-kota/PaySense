@@ -24,6 +24,7 @@ import 'package:paysense/shared/repositories/loan_repository.dart';
 import 'package:paysense/shared/repositories/recurring_transaction_repository.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
+import 'package:paysense/shared/services/account_scope.dart';
 import 'package:paysense/shared/utils/currency_formatter.dart';
 import 'package:paysense/shared/utils/financial_data_exporter.dart';
 import 'package:paysense/shared/utils/password_hasher.dart';
@@ -80,6 +81,7 @@ void main() {
   });
 
   tearDown(() async {
+    AccountScope.instance.deactivate();
     await Hive.deleteFromDisk();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);

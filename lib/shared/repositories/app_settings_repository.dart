@@ -44,16 +44,27 @@ class AppSettingsRepository {
   }
 
   /// Whether the one-time `Transaction.accountId` legacy-label-to-wallet-id
-  /// migration (see `TransactionAccountMigration`) has already completed —
-  /// purely an optimization to skip re-scanning every transaction on every
-  /// app start once there's nothing left to do; the migration itself is
-  /// idempotent even without this flag.
-  Future<bool> isWalletTransactionAccountMigrationV1Complete() async {
-    return (_box.get(_walletTransactionAccountMigrationV1Key) as bool?) ?? false;
+  /// migration (see `TransactionAccountMigration`) has already completed for
+  /// [accountId] — purely an optimization to skip re-scanning every
+  /// transaction on every app start once there's nothing left to do; the
+  /// migration itself is idempotent even without this flag. Keyed per
+  /// account (this box is device-global, but each account's transactions
+  /// live in their own namespace and need their own completion flag).
+  Future<bool> isWalletTransactionAccountMigrationV1Complete({
+    required String accountId,
+  }) async {
+    return (_box.get('${_walletTransactionAccountMigrationV1Key}_$accountId')
+            as bool?) ??
+        false;
   }
 
-  Future<void> completeWalletTransactionAccountMigrationV1() async {
-    await _box.put(_walletTransactionAccountMigrationV1Key, true);
+  Future<void> completeWalletTransactionAccountMigrationV1({
+    required String accountId,
+  }) async {
+    await _box.put(
+      '${_walletTransactionAccountMigrationV1Key}_$accountId',
+      true,
+    );
   }
 
   Future<AppSettings> getSettings() async {

@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:paysense/shared/models/loan.dart';
+import 'package:paysense/shared/services/account_scope.dart';
 
 class LoanRepository {
   LoanRepository._();
@@ -8,7 +9,8 @@ class LoanRepository {
 
   static const String _boxName = 'loans';
 
-  Box<Loan> get _box => Hive.box<Loan>(_boxName);
+  Box<Loan> get _box =>
+      Hive.box<Loan>(AccountScope.instance.scopedBoxName(_boxName));
 
   Future<List<Loan>> getAll() async {
     return List<Loan>.unmodifiable(_box.values.toList());

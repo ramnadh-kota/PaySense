@@ -1,5 +1,7 @@
 import 'package:hive/hive.dart';
 
+import '../services/account_scope.dart';
+
 /// Tracks which SMS fingerprints have already been processed (auto-added,
 /// sent to review, or ignored as low-confidence/non-financial), so a
 /// re-delivered or repeatedly-fetched copy of the same SMS is never acted
@@ -25,7 +27,7 @@ class SmsFingerprintRepository {
   /// duplicate transactions slipping through.
   static const int _maxRetained = 2000;
 
-  Box get _box => Hive.box(_boxName);
+  Box get _box => Hive.box(AccountScope.instance.scopedBoxName(_boxName));
 
   bool isProcessed(String fingerprint) {
     final processed = _box.get(_key) as List<Object?>? ?? const [];

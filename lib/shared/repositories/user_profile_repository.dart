@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import '../models/user_profile.dart';
+import '../services/account_scope.dart';
 
 class UserProfileRepository {
   UserProfileRepository._();
@@ -10,7 +11,8 @@ class UserProfileRepository {
   static const String _boxName = 'user_profile';
   static const String _profileKey = 'profile';
 
-  Box<UserProfile> get _box => Hive.box<UserProfile>(_boxName);
+  Box<UserProfile> get _box =>
+      Hive.box<UserProfile>(AccountScope.instance.scopedBoxName(_boxName));
 
   Future<UserProfile?> getProfile() async {
     return _box.get(_profileKey);

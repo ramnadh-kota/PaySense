@@ -173,11 +173,22 @@ class SettingsScreen extends ConsumerWidget {
             _SectionLabel('Account'),
             AppCard(
               padding: EdgeInsets.zero,
-              child: _SettingsTile(
-                icon: Icons.logout_rounded,
-                label: 'Log Out',
-                labelColor: AppColors.danger,
-                onTap: () => _handleLogout(context, ref),
+              child: Column(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.logout_rounded,
+                    label: 'Log Out',
+                    labelColor: AppColors.danger,
+                    onTap: () => _handleLogout(context, ref),
+                  ),
+                  const _TileDivider(),
+                  _SettingsTile(
+                    icon: Icons.person_remove_outlined,
+                    label: 'Delete Account',
+                    labelColor: AppColors.danger,
+                    onTap: () => _handleDeleteAccount(context, ref),
+                  ),
+                ],
               ),
             ),
           ],
@@ -606,6 +617,89 @@ class SettingsScreen extends ConsumerWidget {
     Navigator.of(
       context,
     ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+  }
+
+  Future<void> _handleDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your account and every transaction, '
+          'wallet, budget, goal, bill, loan, and other record it owns on '
+          'this device. Other accounts on this device are never affected. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    final passwordController = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm your password'),
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Password'),
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(passwordController.text),
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: const Text('Delete Account'),
+          ),
+        ],
+      ),
+    );
+
+    if (password == null || password.isEmpty || !context.mounted) {
+      return;
+    }
+
+    try {
+      await ref.read(authProvider.notifier).deleteAccount(password: password);
+    } on AuthException catch (e) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Your account has been deleted.')),
+    );
   }
 }
 

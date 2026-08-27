@@ -15,6 +15,7 @@ import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/providers/auth_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/repositories/user_profile_repository.dart';
+import 'package:paysense/shared/services/account_scope.dart';
 
 Future<void> _initHive(Directory dir) async {
   Hive.init(dir.path);
@@ -68,6 +69,7 @@ void main() {
   });
 
   tearDown(() async {
+    AccountScope.instance.deactivate();
     await Hive.deleteFromDisk();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);

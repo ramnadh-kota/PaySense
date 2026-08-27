@@ -8,7 +8,10 @@ import 'package:paysense/shared/models/bill.dart';
 import 'package:paysense/shared/models/budget.dart';
 import 'package:paysense/shared/models/goal.dart';
 import 'package:paysense/shared/models/loan.dart';
+import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
+import 'package:paysense/shared/models/sms_review_item.dart';
+import 'package:paysense/shared/models/tax_settings.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/models/wallet.dart';
@@ -16,6 +19,7 @@ import 'package:paysense/shared/providers/auth_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/repositories/account_repository.dart';
 import 'package:paysense/shared/repositories/auth_session_repository.dart';
+import 'package:paysense/shared/services/account_scope.dart';
 import 'package:paysense/shared/utils/password_hasher.dart';
 
 Future<void> _initHive(Directory dir) async {
@@ -47,7 +51,22 @@ Future<void> _initHive(Directory dir) async {
   if (!Hive.isAdapterRegistered(8)) {
     Hive.registerAdapter(AccountAdapter());
   }
+  if (!Hive.isAdapterRegistered(9)) {
+    Hive.registerAdapter(AppNotificationAdapter());
+  }
+  if (!Hive.isAdapterRegistered(10)) {
+    Hive.registerAdapter(SmsReviewItemAdapter());
+  }
+  if (!Hive.isAdapterRegistered(11)) {
+    Hive.registerAdapter(TaxSettingsAdapter());
+  }
 
+  // Account-scoped boxes (user_profile, wallets, transactions, etc.) are
+  // opened lazily by AccountScope.activate() once a real account signs in
+  // or logs in — but some tests here touch a repository (e.g. UserProfile)
+  // before any account is active, which resolves to this unscoped legacy
+  // name via AccountScope's no-active-account fallback, so it still needs
+  // pre-opening here for those cases.
   await Hive.openBox<UserProfile>('user_profile');
   await Hive.openBox<Wallet>('wallets');
   await Hive.openBox<Transaction>('transactions');
@@ -58,6 +77,7 @@ Future<void> _initHive(Directory dir) async {
   await Hive.openBox<Loan>('loans');
   await Hive.openBox<Account>('accounts');
   await Hive.openBox('auth_session');
+  await Hive.openBox('app_settings');
 }
 
 void main() {
@@ -69,6 +89,7 @@ void main() {
   });
 
   tearDown(() async {
+    AccountScope.instance.deactivate();
     await Hive.deleteFromDisk();
     if (await tempDir.exists()) {
       await tempDir.delete(recursive: true);
@@ -215,10 +236,21 @@ void main() {
     final state = container.read(authProvider).value!;
     expect(state.isAuthenticated, isFalse);
     expect(AuthSessionRepository.instance.currentEmail(), isNull);
-
     expect(await AccountRepository.instance.exists('jane@example.com'), isTrue);
-    final profile = await container.read(userProfileProvider.future);
+
+    // The account and its data are preserved (not deleted) by logout, but
+    // — correctly, now that data is account-scoped — no longer readable
+    // while nobody is signed in. Prove preservation the only way that's
+    // still meaningful post-isolation: log back in and see it again.
+    final relogged = ProviderContainer();
+    addTearDown(relogged.dispose);
+    await relogged.read(authProvider.notifier).login(
+      email: 'jane@example.com',
+      password: 'password123',
+    );
+    final profile = await relogged.read(userProfileProvider.future);
     expect(profile, isNotNull);
+    expect(profile!.fullName, 'Jane Doe');
   });
 
   test('a fresh AuthNotifier rehydrates the session after a restart', () async {

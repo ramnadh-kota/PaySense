@@ -1,6 +1,7 @@
 import 'package:hive/hive.dart';
 
 import '../models/sms_review_item.dart';
+import '../services/account_scope.dart';
 
 class SmsReviewRepository {
   SmsReviewRepository._();
@@ -9,7 +10,8 @@ class SmsReviewRepository {
 
   static const String _boxName = 'sms_review_items';
 
-  Box<SmsReviewItem> get _box => Hive.box<SmsReviewItem>(_boxName);
+  Box<SmsReviewItem> get _box =>
+      Hive.box<SmsReviewItem>(AccountScope.instance.scopedBoxName(_boxName));
 
   Future<List<SmsReviewItem>> getAll() async {
     final all = _box.values.toList()

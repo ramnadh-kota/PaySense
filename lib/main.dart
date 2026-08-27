@@ -4,6 +4,7 @@ import 'package:paysense/core/services/notification_service.dart';
 import 'package:paysense/shared/models/account.dart';
 import 'package:paysense/shared/models/bill.dart';
 import 'package:paysense/shared/models/budget.dart';
+import 'package:paysense/shared/models/fun_group_expense.dart';
 import 'package:paysense/shared/models/goal.dart';
 import 'package:paysense/shared/models/loan.dart';
 import 'package:paysense/shared/models/notification_record.dart';
@@ -13,7 +14,6 @@ import 'package:paysense/shared/models/tax_settings.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/models/transaction.dart';
-import 'package:paysense/shared/utils/transaction_account_migration.dart';
 import 'app/app.dart';
 
 Future<void> main() async {
@@ -56,31 +56,26 @@ Future<void> main() async {
   if (!Hive.isAdapterRegistered(11)) {
     Hive.registerAdapter(TaxSettingsAdapter());
   }
+  if (!Hive.isAdapterRegistered(12)) {
+    Hive.registerAdapter(FunGroupExpenseAdapter());
+  }
+  if (!Hive.isAdapterRegistered(13)) {
+    Hive.registerAdapter(FunGroupParticipantAdapter());
+  }
 
-  await Hive.openBox<UserProfile>('user_profile');
-  await Hive.openBox<Wallet>('wallets');
-  await Hive.openBox<Transaction>('transactions');
-  await Hive.openBox<Budget>('budgets');
-  await Hive.openBox<Goal>('goals');
-  await Hive.openBox<RecurringTransaction>('recurring_transactions');
-  await Hive.openBox('app_settings');
-  await Hive.openBox<Bill>('bills');
-  await Hive.openBox<Loan>('loans');
+  // Only device-level/global boxes are opened eagerly at startup: the
+  // account registry, which account (if any) is currently signed in, and
+  // device-wide app settings (theme, first-launch, App Lock, SMS toggle —
+  // see AccountScope's doc comment for why these stay global). Every box
+  // that holds actual financial data is account-scoped and is opened lazily
+  // by AccountScope.activate() once a specific account is known to be
+  // active — never before, so Account B can never even open Account A's
+  // box, let alone read it.
   await Hive.openBox<Account>('accounts');
   await Hive.openBox('auth_session');
-  await Hive.openBox<AppNotification>('app_notifications');
-  await Hive.openBox<SmsReviewItem>('sms_review_items');
-  // Untyped — just a single bounded list of processed SMS fingerprints,
-  // see SmsFingerprintRepository.
-  await Hive.openBox('sms_processed_fingerprints');
-  await Hive.openBox<TaxSettings>('tax_settings');
+  await Hive.openBox('app_settings');
 
   await NotificationService.instance.initialize();
-
-  // One-time, idempotent correction of any Transaction.accountId values
-  // still holding a legacy display label instead of a real Wallet.id — see
-  // TransactionAccountMigration for the (never-guess) resolution rules.
-  await TransactionAccountMigrationRunner.runIfNeeded();
 
   runApp(const PaySenseApp());
 }

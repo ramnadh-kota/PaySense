@@ -1,5 +1,6 @@
 import 'package:hive/hive.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
+import 'package:paysense/shared/services/account_scope.dart';
 
 class RecurringTransactionRepository {
   RecurringTransactionRepository._();
@@ -9,8 +10,9 @@ class RecurringTransactionRepository {
 
   static const String _boxName = 'recurring_transactions';
 
-  Box<RecurringTransaction> get _box =>
-      Hive.box<RecurringTransaction>(_boxName);
+  Box<RecurringTransaction> get _box => Hive.box<RecurringTransaction>(
+    AccountScope.instance.scopedBoxName(_boxName),
+  );
 
   Future<List<RecurringTransaction>> getAll() async {
     return List<RecurringTransaction>.unmodifiable(_box.values.toList());

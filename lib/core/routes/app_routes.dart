@@ -34,4 +34,5 @@ class AppRoutes {
   static const taxPlanner = '/tax-planner';
   static const affordability = '/affordability';
   static const financialHealthTrends = '/financial-health-trends';
+  static const funFunds = '/fun-funds';
 }
