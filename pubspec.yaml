@@ -45,6 +45,7 @@ dependencies:
   timezone: ^0.11.1
   crypto: ^3.0.7
   local_auth: ^3.0.2
+  pdf: ^3.13.0
 
 dev_dependencies:
   flutter_test:

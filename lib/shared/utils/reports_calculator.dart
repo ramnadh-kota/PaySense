@@ -7,11 +7,20 @@ import '../models/wallet.dart';
 /// needed — matches the spec's explicit "limit to 5" instruction.
 const int reportsTopExpensesLimit = 5;
 
-enum ReportPeriod { thisMonth, lastMonth, last3Months, last6Months, lastYear }
+enum ReportPeriod {
+  thisWeek,
+  thisMonth,
+  lastMonth,
+  last3Months,
+  last6Months,
+  lastYear,
+}
 
 extension ReportPeriodLabel on ReportPeriod {
   String get label {
     switch (this) {
+      case ReportPeriod.thisWeek:
+        return 'This week';
       case ReportPeriod.thisMonth:
         return 'This month';
       case ReportPeriod.lastMonth:
@@ -254,6 +263,19 @@ class ReportsCalculator {
     final nextMonthStart = DateTime(now.year, now.month + 1, 1);
 
     switch (period) {
+      case ReportPeriod.thisWeek:
+        // Rolling 7-day window ending today (inclusive), not a calendar
+        // week — avoids an arbitrary "week starts on X" assumption nothing
+        // else in the app makes. Previous period is the preceding 7 days.
+        final todayStart = DateTime(now.year, now.month, now.day);
+        final start = todayStart.subtract(const Duration(days: 6));
+        final end = todayStart.add(const Duration(days: 1));
+        return ReportDateRange(
+          start: start,
+          end: end,
+          previousStart: start.subtract(const Duration(days: 7)),
+          previousEnd: start,
+        );
       case ReportPeriod.thisMonth:
         return ReportDateRange(
           start: currentMonthStart,

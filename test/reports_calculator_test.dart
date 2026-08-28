@@ -372,4 +372,54 @@ void main() {
       expect(result.totalExpense, 500);
     });
   });
+
+  group('Weekly period', () {
+    test(
+      '25. thisWeek is a rolling 7-day window (today minus 6 days) — a '
+      'transaction 6 days ago is included, one 7 days ago is not',
+      () {
+        final range = ReportsCalculator.dateRangeFor(ReportPeriod.thisWeek, now);
+        expect(range.start, now.subtract(const Duration(days: 6)));
+        expect(range.end, DateTime(now.year, now.month, now.day + 1));
+
+        final result = calc([
+          _tx(
+            id: 'in-window',
+            amount: 100,
+            categoryId: 'Food',
+            accountId: 'w1',
+            type: 'expense',
+            createdAt: now.subtract(const Duration(days: 6)),
+          ),
+          _tx(
+            id: 'out-of-window',
+            amount: 500,
+            categoryId: 'Food',
+            accountId: 'w1',
+            type: 'expense',
+            createdAt: now.subtract(const Duration(days: 7)),
+          ),
+        ], period: ReportPeriod.thisWeek);
+
+        expect(result.totalExpense, 100);
+      },
+    );
+
+    test(
+      '26. thisWeek compares against the preceding 7-day window, not the '
+      'preceding calendar month',
+      () {
+        final range = ReportsCalculator.dateRangeFor(ReportPeriod.thisWeek, now);
+        expect(range.previousEnd, range.start);
+        expect(
+          range.previousStart,
+          range.start.subtract(const Duration(days: 7)),
+        );
+      },
+    );
+
+    test('27. thisWeek label reads "This week"', () {
+      expect(ReportPeriod.thisWeek.label, 'This week');
+    });
+  });
 }

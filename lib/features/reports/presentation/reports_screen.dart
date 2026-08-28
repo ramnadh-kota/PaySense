@@ -4,10 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/features/reports/presentation/widgets/reports_income_expense_chart.dart';
+import 'package:paysense/shared/providers/financial_report_bundle_provider.dart';
 import 'package:paysense/shared/providers/reports_provider.dart';
 import 'package:paysense/shared/providers/transaction_filter_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/utils/currency_formatter.dart';
+import 'package:paysense/shared/utils/financial_report_file_writer.dart';
 import 'package:paysense/shared/utils/reports_calculator.dart';
 import 'package:paysense/shared/utils/transaction_filters.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
@@ -41,6 +43,15 @@ class ReportsScreen extends ConsumerWidget {
         elevation: 0,
         foregroundColor: AppColors.textPrimary,
         title: const Text('Reports'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'Export PDF report',
+            onPressed: result.hasAnyTransactions
+                ? () => _handleExportPdf(context, ref)
+                : null,
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
@@ -89,6 +100,53 @@ class ReportsScreen extends ConsumerWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Same save-to-documents-directory-and-show-the-path pattern Settings'
+  /// "Export financial data" already uses — the PDF stays entirely
+  /// on-device, no new sharing mechanism/dependency introduced for it.
+  Future<void> _handleExportPdf(BuildContext context, WidgetRef ref) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    String? resultPath;
+    String? errorMessage;
+    try {
+      final bundle = ref.read(financialReportBundleProvider);
+      resultPath = await FinancialReportFileWriter.instance.writeToFile(
+        bundle,
+      );
+    } catch (e) {
+      errorMessage = e.toString();
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+    Navigator.of(context).pop();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(errorMessage == null ? 'Report saved' : 'Export failed'),
+        content: Text(
+          errorMessage == null
+              ? 'Your financial report was saved to:\n\n$resultPath\n\n'
+                  'The file stays on this device — PaySense doesn\'t upload '
+                  'or share it anywhere.'
+              : 'Something went wrong: $errorMessage',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }

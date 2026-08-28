@@ -83,6 +83,29 @@ void main() {
   final now = DateTime(2026, 8, 15);
 
   group('FunFundsCalculator', () {
+    test(
+      'never suggests money is available when known obligations exceed '
+      'available funds — a Safe-to-Spend shortfall (0) must yield 0 Fun '
+      'Funds, never a positive figure',
+      () {
+        // A real shortfall: SafeToSpendCalculator itself floors this at 0
+        // rather than a negative number, so 0 is exactly what a genuine
+        // "obligations exceed available money" scenario looks like here.
+        final result = FunFundsCalculator.calculate(
+          safeToSpend: _safeToSpend(hasSufficientData: true, safeToSpend: 0),
+          budgetTotals: _budgetTotals(remainingBudget: 0),
+          goalProjections: const [],
+          groupExpenses: const [],
+          now: now,
+        );
+
+        expect(result.monthlyAvailable, 0);
+        expect(result.remaining, 0);
+        expect(result.dailyBudget, 0);
+        expect(result.weeklyBudget, 0);
+      },
+    );
+
     test('returns insufficient-data result when Safe-to-Spend has no data', () {
       final result = FunFundsCalculator.calculate(
         safeToSpend: _safeToSpend(hasSufficientData: false),
