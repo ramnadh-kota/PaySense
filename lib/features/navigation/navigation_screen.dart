@@ -32,7 +32,20 @@ class NavigationScreen extends ConsumerWidget {
     ];
 
     return Scaffold(
-      body: _pages[selectedIndex],
+      // The FAB below is docked (NudgedFabLocation) so it visually floats
+      // ~40dp above the bottom bar's top edge, straddling the boundary
+      // between `body` and `bottomNavigationBar`. Scaffold paints the FAB
+      // as an overlay ON TOP of body content regardless of each tab's own
+      // scroll padding, so without this reservation the FAB permanently
+      // covers whatever happens to be at the bottom of a tab's content
+      // (confirmed on-device on Dashboard and Analytics). Reserving this
+      // clearance ONCE here — rather than adding matching bottom padding
+      // to every individual tab screen — guarantees it for all five tabs,
+      // including any added later, with a single source of truth.
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: kFabBottomClearance),
+        child: _pages[selectedIndex],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.of(context).push(
@@ -98,6 +111,14 @@ class _NavItem {
 
   const _NavItem({required this.icon, required this.label});
 }
+
+/// Bottom padding reserved on every tab's body so [NudgedFabLocation]'s FAB
+/// never overlaps content. Derivation: a standard FAB is 56dp, and
+/// `centerDocked` centers it ON the body/bottomNavigationBar boundary — so
+/// it extends 28dp above that boundary by default. `NudgedFabLocation`
+/// nudges it up another 12dp (`dy`), for 40dp of overlap into the body.
+/// Rounded up to 56dp to also clear the FAB's shadow/highlight halo.
+const double kFabBottomClearance = 56;
 
 /// [FloatingActionButtonLocation.centerDocked], nudged slightly left and up
 /// so the FAB no longer sits directly over bottom-center screen content

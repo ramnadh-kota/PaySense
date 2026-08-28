@@ -41,6 +41,13 @@ class LoanOutstandingChart extends StatelessWidget {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                // Without an explicit interval, fl_chart auto-picks a
+                // fractional step (e.g. 0.5) for this small 0..5 range,
+                // calling getTitlesWidget at non-integer x values whose
+                // .toInt() truncates to the SAME month index twice in a
+                // row — the duplicated "Mar Mar Apr Apr..." labels seen
+                // on-device. One label per data point, exactly once.
+                interval: 1,
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
                   if (index < 0 || index >= trend.length) {
