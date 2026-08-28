@@ -18,6 +18,7 @@ class AppSettings {
     this.recurringReminders = true,
     this.loanReminders = true,
     this.smsAutomationEnabled = false,
+    this.insightNotifications = true,
   });
 
   final AppThemeMode themeMode;
@@ -30,12 +31,18 @@ class AppSettings {
   /// requested after the user explicitly turns this on.
   final bool smsAutomationEnabled;
 
+  /// Whether critical/high-priority Proactive Financial Insights (PHASE 7)
+  /// should be recorded as in-app notifications. On by default, matching
+  /// [billReminders]/[recurringReminders]/[loanReminders].
+  final bool insightNotifications;
+
   AppSettings copyWith({
     AppThemeMode? themeMode,
     bool? billReminders,
     bool? recurringReminders,
     bool? loanReminders,
     bool? smsAutomationEnabled,
+    bool? insightNotifications,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -43,6 +50,7 @@ class AppSettings {
       recurringReminders: recurringReminders ?? this.recurringReminders,
       loanReminders: loanReminders ?? this.loanReminders,
       smsAutomationEnabled: smsAutomationEnabled ?? this.smsAutomationEnabled,
+      insightNotifications: insightNotifications ?? this.insightNotifications,
     );
   }
 
@@ -57,7 +65,8 @@ class AppSettings {
         other.billReminders == billReminders &&
         other.recurringReminders == recurringReminders &&
         other.loanReminders == loanReminders &&
-        other.smsAutomationEnabled == smsAutomationEnabled;
+        other.smsAutomationEnabled == smsAutomationEnabled &&
+        other.insightNotifications == insightNotifications;
   }
 
   @override
@@ -67,5 +76,6 @@ class AppSettings {
     recurringReminders,
     loanReminders,
     smsAutomationEnabled,
+    insightNotifications,
   );
 }

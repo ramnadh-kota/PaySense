@@ -1,6 +1,11 @@
 import 'package:paysense/features/ai/models/financial_context.dart';
 import 'package:paysense/features/ai/services/ai_question_router.dart';
+import 'package:hive/hive.dart';
 import 'package:paysense/shared/providers/analytics_provider.dart' show buildAnalyticsSummary;
+import 'package:paysense/shared/repositories/account_aggregator_connection_repository.dart';
+import 'package:paysense/shared/services/account_aggregator/account_aggregator_models.dart';
+import 'package:paysense/shared/models/financial_safety_alert.dart';
+import 'package:paysense/shared/utils/financial_safety_engine.dart';
 import 'package:paysense/shared/repositories/app_settings_repository.dart';
 import 'package:paysense/shared/repositories/bill_repository.dart';
 import 'package:paysense/shared/repositories/budget_repository.dart';
@@ -14,7 +19,11 @@ import 'package:paysense/shared/utils/cash_flow_calculator.dart';
 import 'package:paysense/shared/utils/financial_action_engine.dart';
 import 'package:paysense/shared/utils/financial_health_calculator.dart';
 import 'package:paysense/shared/utils/financial_health_trends_calculator.dart';
+import 'package:paysense/shared/utils/compare_periods_calculator.dart';
+import 'package:paysense/shared/utils/financial_insight_engine.dart';
+import 'package:paysense/shared/utils/financial_momentum_calculator.dart';
 import 'package:paysense/shared/utils/financial_planning_calculator.dart';
+import 'package:paysense/shared/utils/financial_timeline_calculator.dart';
 import 'package:paysense/shared/utils/reports_calculator.dart';
 import 'package:paysense/shared/utils/safe_to_spend_calculator.dart';
 import 'package:paysense/shared/utils/subscription_calculator.dart';
@@ -360,6 +369,200 @@ class FinancialContextBuilder {
       financialHealthTrendsContext = _financialHealthTrendsContextMap(trends);
     }
 
+    // PROACTIVE FINANCIAL INSIGHTS 1.0 (PHASE 6) — combines the SAME
+    // FinancialActionEngine/FinancialHealthTrendsCalculator/
+    // SafeToSpendCalculator calls used above into the unified up-to-3
+    // insight list the Dashboard shows. Recomputed via a fresh call here
+    // (not shared across the gate blocks above, which are independently
+    // trimmed by `wants(...)`) — exactly the same pattern `subscriptionsContext`
+    // already uses when its own gate differs from `wantsFinancialActions`'s.
+    Map<String, dynamic> financialInsightsContext = const {};
+    final wantsInsights = wantsFinancialActions ||
+        wants(FinancialQuestionCategory.financialHealth) ||
+        wants(FinancialQuestionCategory.spending) ||
+        wants(FinancialQuestionCategory.cashFlow) ||
+        wants(FinancialQuestionCategory.subscriptions);
+    if (wantsInsights) {
+      final insightSettings = AppSettingsRepository.instance;
+      final insightPlanning = FinancialPlanningCalculator.calculate(
+        transactions: transactions,
+        wallets: wallets,
+        goals: goals,
+        loans: loans,
+        bills: bills,
+        recurringTransactions: recurringTransactions,
+        analytics: buildAnalyticsSummary(transactions, now),
+        emergencyFundEligibleWalletIds: insightSettings.emergencyFundEligibleWalletIds(),
+        emergencyFundTargetMonths: insightSettings.emergencyFundTargetMonths(),
+        now: now,
+      );
+      final insightActionPlan = FinancialActionEngine.generate(
+        FinancialActionEngineInput(
+          planning: insightPlanning,
+          budgets: budgets,
+          subscriptions: SubscriptionCalculator.eligibleSubscriptions(
+            recurringTransactions: recurringTransactions,
+            now: now,
+          ),
+          now: now,
+        ),
+      );
+      final insightTrends = FinancialHealthTrendsCalculator.calculate(
+        transactions: transactions,
+        budgets: budgets,
+        goals: goals,
+        loans: loans,
+        bills: bills,
+        wallets: wallets,
+        profileMonthlyIncome: profile?.monthlyIncome ?? 0.0,
+        period: TrendPeriod.threeMonths,
+        emergencyFundEligibleWalletIds: insightSettings.emergencyFundEligibleWalletIds(),
+        emergencyFundTargetMonths: insightSettings.emergencyFundTargetMonths(),
+        now: now,
+      );
+      final insightSafeToSpend = SafeToSpendCalculator.calculate(
+        wallets: wallets,
+        bills: bills,
+        loans: loans,
+        recurringTransactions: recurringTransactions,
+        now: now,
+      );
+      final insightResult = FinancialInsightEngine.generate(
+        actionPlan: insightActionPlan,
+        trends: insightTrends,
+        safeToSpend: insightSafeToSpend,
+        recurringTransactions: recurringTransactions,
+        now: now,
+      );
+      financialInsightsContext = _financialInsightsContextMap(insightResult);
+    }
+
+    // FINANCIAL INTELLIGENCE TIMELINE 1.0 (PHASE 7) — combines the SAME
+    // FinancialHealthTrendsCalculator/FinancialPlanningCalculator/
+    // SubscriptionCalculator calls used above into a chronological event
+    // log + momentum snapshot. Recomputed via a fresh call here (same
+    // independent-per-gate pattern as `financialInsightsContext`).
+    Map<String, dynamic> timelineContext = const {};
+    final wantsTimeline = wantsFinancialActions ||
+        wants(FinancialQuestionCategory.financialHealth) ||
+        wants(FinancialQuestionCategory.spending) ||
+        wants(FinancialQuestionCategory.reports);
+    if (wantsTimeline) {
+      final timelineSettings = AppSettingsRepository.instance;
+      final timelinePlanning = FinancialPlanningCalculator.calculate(
+        transactions: transactions,
+        wallets: wallets,
+        goals: goals,
+        loans: loans,
+        bills: bills,
+        recurringTransactions: recurringTransactions,
+        analytics: buildAnalyticsSummary(transactions, now),
+        emergencyFundEligibleWalletIds: timelineSettings.emergencyFundEligibleWalletIds(),
+        emergencyFundTargetMonths: timelineSettings.emergencyFundTargetMonths(),
+        now: now,
+      );
+      final timelineTrends = FinancialHealthTrendsCalculator.calculate(
+        transactions: transactions,
+        budgets: budgets,
+        goals: goals,
+        loans: loans,
+        bills: bills,
+        wallets: wallets,
+        profileMonthlyIncome: profile?.monthlyIncome ?? 0.0,
+        period: TrendPeriod.threeMonths,
+        emergencyFundEligibleWalletIds: timelineSettings.emergencyFundEligibleWalletIds(),
+        emergencyFundTargetMonths: timelineSettings.emergencyFundTargetMonths(),
+        now: now,
+      );
+      final timeline = FinancialTimelineCalculator.calculate(
+        trends: timelineTrends,
+        planning: timelinePlanning,
+        budgets: budgets,
+        goals: goals,
+        loans: loans,
+        transactions: transactions,
+        recurringTransactions: recurringTransactions,
+        subscriptions: SubscriptionCalculator.eligibleSubscriptions(
+          recurringTransactions: recurringTransactions,
+          now: now,
+        ),
+        period: TimelinePeriod.threeMonths,
+        now: now,
+      );
+      final momentum = FinancialMomentumCalculator.calculate(timelineTrends);
+      timelineContext = _timelineContextMap(timeline, momentum);
+    }
+
+    // COMPARE PERIODS 1.0 (PHASE 7) — reuses the SAME ComparePeriodsCalculator
+    // the Compare Periods screen itself uses, defaulted to "this month vs
+    // last month" (the natural default for "did I spend more this month?"/
+    // "what changed compared with last month?"). The AI explains this
+    // already-computed comparison; it never recalculates one of its own.
+    Map<String, dynamic> comparePeriodsContext = const {};
+    final wantsComparePeriods = wants(FinancialQuestionCategory.reports) ||
+        wants(FinancialQuestionCategory.spending) ||
+        wants(FinancialQuestionCategory.budget) ||
+        wants(FinancialQuestionCategory.financialHealth) ||
+        wants(FinancialQuestionCategory.savings);
+    if (wantsComparePeriods) {
+      final currentMonthStart = DateTime(now.year, now.month, 1);
+      final currentMonthEnd = DateTime(now.year, now.month + 1, 1);
+      final previousMonthStart = DateTime(now.year, now.month - 1, 1);
+      final comparison = ComparePeriodsCalculator.calculate(
+        transactions: transactions,
+        wallets: wallets,
+        budgets: budgets,
+        currentPeriod: ComparePeriod(
+          label: 'This month',
+          start: currentMonthStart,
+          end: currentMonthEnd,
+        ),
+        comparisonPeriod: ComparePeriod(
+          label: 'Last month',
+          start: previousMonthStart,
+          end: currentMonthStart,
+        ),
+      );
+      comparePeriodsContext = _comparePeriodsContextMap(comparison);
+    }
+
+    // ACCOUNT AGGREGATOR — PART G. Aggregated, privacy-safe connection
+    // metadata only — never a raw AA transaction/account number/
+    // credential (see FinancialContext.accountAggregatorContext's own
+    // doc comment).
+    //
+    // Deliberately only reads this when the connections box is ALREADY
+    // open (i.e. some AA-related screen has been visited this session) —
+    // never triggers opening it fresh from here. Opening a Hive box for
+    // the first time is a real disk I/O operation, unlike every other
+    // repository read above (which all hit boxes `build()`'s caller has
+    // already opened at app bootstrap and are therefore effectively
+    // instant); doing that unconditionally on every context build once
+    // measurably shifted this method's timing enough to break an
+    // unrelated in-flight-request-deduplication test that synchronizes
+    // on a `Future.delayed(Duration.zero)` microtask boundary. A fresh
+    // app session with no AA connection yet correctly has nothing to
+    // report anyway; once any AA screen opens the box, it stays open for
+    // the rest of the session and this reflects real data from then on.
+    final accountAggregatorContext = Hive.isBoxOpen(AccountAggregatorConnectionRepository.boxName)
+        ? _accountAggregatorContextMap(await AccountAggregatorConnectionRepository.instance.getAll())
+        : _accountAggregatorContextMap(const []);
+
+    // FINANCIAL SAFETY ENGINE — PART K. Reuses the SAME
+    // wallets/transactions/bills/loans/recurringTransactions already
+    // fetched above (no extra repository/box access) — safe with
+    // respect to the timing lesson learned from accountAggregatorContext
+    // above, since nothing new is opened here.
+    final safetyAlerts = FinancialSafetyEngine.generate(
+      transactions: transactions,
+      wallets: wallets,
+      bills: bills,
+      loans: loans,
+      recurringTransactions: recurringTransactions,
+      now: now,
+    );
+    final financialSafetyContext = _financialSafetyContextMap(safetyAlerts);
+
     return FinancialContext(
       fullName: profile?.fullName ?? '',
       monthlyIncome: profile?.monthlyIncome ?? 0.0,
@@ -414,7 +617,59 @@ class FinancialContextBuilder {
       financialActionsContext: financialActionsContext,
       financialHealthTrendsContext: financialHealthTrendsContext,
       affordabilityContext: affordabilityContext,
+      financialInsightsContext: financialInsightsContext,
+      timelineContext: timelineContext,
+      comparePeriodsContext: comparePeriodsContext,
+      accountAggregatorContext: accountAggregatorContext,
+      financialSafetyContext: financialSafetyContext,
     );
+  }
+
+  /// ACCOUNT AGGREGATOR — PART G. Answers "did my bank sync succeed",
+  /// "what accounts are connected", "when was my last sync" — nothing
+  /// else. No account numbers, no transaction content, no credentials.
+  Map<String, dynamic> _accountAggregatorContextMap(List<AccountAggregatorConnection> connections) {
+    final active = connections.where((c) => c.status != ConnectionStatus.revoked).toList();
+    if (active.isEmpty) {
+      return {'isConnected': false, 'connectedAccountCount': 0};
+    }
+
+    final lastSyncedAt = active
+        .map((c) => c.lastSyncedAt)
+        .whereType<DateTime>()
+        .fold<DateTime?>(null, (latest, d) => latest == null || d.isAfter(latest) ? d : latest);
+
+    return {
+      'isConnected': true,
+      'connectionCount': active.length,
+      'connectedAccountCount': active.fold<int>(0, (sum, c) => sum + c.accounts.length),
+      'accountDisplayNames': active.expand((c) => c.accounts.map((a) => a.displayName)).toList(),
+      'lastSyncedAt': lastSyncedAt?.toIso8601String(),
+      'anySyncFailed': active.any((c) => c.status == ConnectionStatus.failed),
+      'anyPartiallyConnected': active.any((c) => c.status == ConnectionStatus.partiallyConnected),
+      'isMockData': active.any((c) => c.isMock),
+    };
+  }
+
+  /// FINANCIAL SAFETY ENGINE — PART K. Title/explanation/severity only —
+  /// never the raw transaction/wallet/bill/loan data the engine used to
+  /// compute each alert.
+  Map<String, dynamic> _financialSafetyContextMap(List<FinancialSafetyAlert> alerts) {
+    if (alerts.isEmpty) {
+      return {'hasActiveAlerts': false, 'alertCount': 0};
+    }
+    return {
+      'hasActiveAlerts': true,
+      'alertCount': alerts.length,
+      'alerts': alerts
+          .map((a) => {
+                'type': a.type.name,
+                'severity': a.severity.name,
+                'title': a.title,
+                'explanation': a.explanation,
+              })
+          .toList(),
+    };
   }
 
   /// Only the top action(s) FinancialActionEngine surfaced — priority,
@@ -435,6 +690,101 @@ class FinancialContextBuilder {
             },
           )
           .toList(),
+    };
+  }
+
+  /// Only type/priority/title/explanation/recommendation/entity name and
+  /// supporting figures — never a raw wallet/transaction/SMS row. The AI
+  /// may explain these deterministic insights but must never recompute or
+  /// contradict the figures here (see SYSTEM_INSTRUCTION in ai_backend).
+  Map<String, dynamic> _financialInsightsContextMap(FinancialInsightResult result) {
+    return {
+      'insights': result.insights
+          .map(
+            (i) => {
+              'type': i.type.name,
+              'priority': i.priority.name,
+              'title': i.title,
+              'explanation': i.explanation,
+              'recommendedAction': i.recommendedAction,
+              if (i.amount != null) 'amount': i.amount,
+              if (i.percentage != null) 'percentage': i.percentage,
+              if (i.relatedEntityName != null) 'relatedEntityName': i.relatedEntityName,
+            },
+          )
+          .toList(),
+    };
+  }
+
+  /// Only event type/tone/date/title/explanation/figures and the momentum
+  /// status/signals — never a raw transaction row, SMS body, or account
+  /// identifier. Capped to the 10 most recent events so a long history
+  /// never balloons the AI payload; the deterministic ordering (newest
+  /// first) is preserved from [FinancialTimelineResult.events].
+  Map<String, dynamic> _timelineContextMap(FinancialTimelineResult timeline, FinancialMomentum momentum) {
+    return {
+      'hasSufficientData': timeline.hasSufficientData,
+      'momentum': {
+        'status': momentum.status.name,
+        'signals': momentum.signals
+            .map((s) => {'label': s.label, 'direction': s.direction.name, 'detail': s.detail})
+            .toList(),
+      },
+      'events': timeline.events
+          .take(10)
+          .map(
+            (e) => {
+              'type': e.type.name,
+              'tone': e.tone.name,
+              'date': e.date.toIso8601String(),
+              'title': e.title,
+              'explanation': e.explanation,
+              if (e.amount != null) 'amount': e.amount,
+              if (e.percentage != null) 'percentage': e.percentage,
+              if (e.relatedEntityName != null) 'relatedEntityName': e.relatedEntityName,
+            },
+          )
+          .toList(),
+    };
+  }
+
+  /// Only aggregated period labels/totals/percentages/directions/category
+  /// names — never a raw transaction row, SMS body, or account identifier.
+  /// The AI may explain this deterministic comparison but must never
+  /// recompute or contradict its figures (see SYSTEM_INSTRUCTION in
+  /// ai_backend).
+  Map<String, dynamic> _comparePeriodsContextMap(ComparePeriodsResult result) {
+    Map<String, dynamic> metricMap(ComparePeriodMetric metric) => {
+          'current': metric.currentValue,
+          'comparison': metric.comparisonValue,
+          if (metric.percentageDifference != null) 'percentageDifference': metric.percentageDifference,
+          'direction': metric.direction.name,
+        };
+
+    return {
+      'currentPeriodLabel': result.currentPeriod.label,
+      'comparisonPeriodLabel': result.comparisonPeriod.label,
+      'hasSufficientData': result.hasSufficientData,
+      'income': metricMap(result.income),
+      'expense': metricMap(result.expense),
+      'savings': metricMap(result.savings),
+      'savingsRate': {
+        if (result.savingsRate.currentRate != null) 'current': result.savingsRate.currentRate,
+        if (result.savingsRate.comparisonRate != null) 'comparison': result.savingsRate.comparisonRate,
+        if (result.savingsRate.pointsDifference != null) 'pointsDifference': result.savingsRate.pointsDifference,
+        'direction': result.savingsRate.direction.name,
+      },
+      'categoryChanges': result.categoryChanges
+          .map(
+            (c) => {
+              'categoryId': c.categoryId,
+              'current': c.change.current,
+              'comparison': c.change.previous,
+              'direction': c.direction.name,
+            },
+          )
+          .toList(),
+      'verdict': result.verdict,
     };
   }
 

@@ -29,4 +29,12 @@ class AccountRepository {
       await _box.put(account.email, account);
     }
   }
+
+  /// ACCOUNT DELETION — removes the local login credential record
+  /// entirely. Never used for anything short of a full account deletion;
+  /// logging out uses [AuthSessionRepository.clearSession] instead, which
+  /// leaves this record intact so the user can log back in.
+  Future<void> delete(String email) async {
+    await _box.delete(normalizeEmail(email));
+  }
 }

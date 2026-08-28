@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paysense/core/constants/app_colors.dart';
+import 'package:paysense/shared/models/budget.dart';
+import 'package:paysense/shared/models/goal.dart';
+import 'package:paysense/shared/models/pain_of_paying_result.dart';
 import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/models/wallet.dart';
+import 'package:paysense/shared/providers/budget_provider.dart';
+import 'package:paysense/shared/providers/financial_planning_provider.dart';
+import 'package:paysense/shared/providers/goal_provider.dart';
+import 'package:paysense/shared/providers/safe_to_spend_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
+import 'package:paysense/shared/utils/pain_of_paying_engine.dart';
+import 'package:paysense/shared/utils/purchase_impact_calculator.dart';
 import 'package:paysense/shared/widgets/decision_coach_dialog.dart';
+import 'package:paysense/shared/widgets/pain_of_paying_sheet.dart';
 import 'package:paysense/shared/widgets/wallet_selector_field.dart';
 import 'package:paysense/features/wallet/presentation/add_edit_wallet_screen.dart';
 import 'package:uuid/uuid.dart';
@@ -67,15 +77,37 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return;
     }
 
+    // BUG FIX (stale Think Before You Pay): these three insights used to be
+    // hardcoded literals (emiPercentage: 18, savingsGoalPercentage: 3, a
+    // fixed "two days of groceries" string) that never reflected the
+    // amount actually entered. They're now computed fresh, from the SAME
+    // `amount` just parsed above, every time this dialog is about to open
+    // — a read-only calculation that never touches a repository.
+    final planning = ref.read(financialPlanningProvider);
+    final goals = ref.read(goalsProvider).value ?? const <Goal>[];
+    final transactions = ref.read(transactionsProvider).value ?? const <Transaction>[];
+    final impact = PurchaseImpactCalculator.calculate(
+      amount: amount,
+      monthlyEmiBurden: planning.debt.monthlyEmiBurden,
+      goals: goals,
+      transactions: transactions,
+      category: _selectedCategory,
+      now: DateTime.now(),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return DecisionCoachDialog(
-          amount: amount,
-          emiPercentage: 18,
-          savingsGoalPercentage: 3,
-          comparisonMessage: 'This equals two days of groceries.',
+          amount: impact.amount,
+          emiPercentage: impact.emiPercentage,
+          savingsGoalPercentage: impact.savingsGoalPercentage,
+          comparisonMessage: impact.perspectiveMessage,
         );
       },
     );
@@ -102,6 +134,36 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     await WalletRepository.instance.decreaseBalance(walletId, amount);
     await ref.read(walletsProvider.notifier).reload();
     await ref.read(transactionsProvider.notifier).reload();
+
+    if (!mounted) {
+      return;
+    }
+
+    // PAIN-OF-PAYING ENGINE: a lighter-touch, non-blocking follow-up to
+    // the "Think Before You Pay" dialog above — awareness after the fact,
+    // never a second confirm/cancel gate. Only shown when there's
+    // genuinely something to say (level != low), so a routine small
+    // purchase never interrupts the flow.
+    final budgets = ref.read(budgetsProvider).value ?? const <Budget>[];
+    final safeToSpend = ref.read(safeToSpendProvider);
+    final painOfPaying = PainOfPayingEngine.evaluate(
+      amount: amount,
+      categoryId: transaction.categoryId,
+      transactions: ref.read(transactionsProvider).value ?? const <Transaction>[],
+      budgets: budgets,
+      goals: goals,
+      now: DateTime.now(),
+      monthlyEmiBurden: planning.debt.monthlyEmiBurden,
+      safeToSpend: safeToSpend,
+      excludeTransactionId: transaction.id,
+    );
+
+    if (!mounted) {
+      return;
+    }
+    if (painOfPaying.level != PainOfPayingLevel.low) {
+      await showPainOfPayingSheet(context, painOfPaying);
+    }
 
     if (!mounted) {
       return;

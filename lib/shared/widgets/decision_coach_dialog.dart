@@ -13,8 +13,16 @@ class DecisionCoachDialog extends StatelessWidget {
   });
 
   final double amount;
-  final double emiPercentage;
-  final double savingsGoalPercentage;
+
+  /// Null when there's no active-loan EMI data to compare against — the
+  /// EMI Impact card is hidden rather than showing a fabricated percentage.
+  final double? emiPercentage;
+
+  /// Null when there's no incomplete savings goal to compare against — the
+  /// Savings Goal card is hidden rather than showing a fabricated
+  /// percentage.
+  final double? savingsGoalPercentage;
+
   final String comparisonMessage;
 
   @override
@@ -88,20 +96,24 @@ class DecisionCoachDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            _InsightCard(
-              icon: Icons.account_balance_wallet_rounded,
-              title: 'EMI Impact',
-              body:
-                  'This purchase equals ${emiPercentage.toStringAsFixed(0)}% of your monthly EMI.',
-            ),
-            const SizedBox(height: 12),
-            _InsightCard(
-              icon: Icons.savings_rounded,
-              title: 'Savings Goal',
-              body:
-                  'This reduces your savings progress by ${savingsGoalPercentage.toStringAsFixed(0)}%.',
-            ),
-            const SizedBox(height: 12),
+            if (emiPercentage != null) ...[
+              _InsightCard(
+                icon: Icons.account_balance_wallet_rounded,
+                title: 'EMI Impact',
+                body:
+                    'This purchase equals ${emiPercentage!.toStringAsFixed(0)}% of your monthly EMI.',
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (savingsGoalPercentage != null) ...[
+              _InsightCard(
+                icon: Icons.savings_rounded,
+                title: 'Savings Goal',
+                body:
+                    '${currencyFormatter.format(amount)} would represent ${savingsGoalPercentage!.toStringAsFixed(0)}% of your remaining goal amount.',
+              ),
+              const SizedBox(height: 12),
+            ],
             _InsightCard(
               icon: Icons.lightbulb_rounded,
               title: 'Perspective',

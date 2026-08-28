@@ -1,0 +1,22 @@
+# PLAY STORE PREPARATION — release signing template.
+#
+# This is a TEMPLATE ONLY. No real values exist here or anywhere in this
+# repository. To activate real release signing:
+#
+#   1. Generate a real release keystore yourself (this must be done by
+#      the app owner — it cannot be generated or invented on your behalf):
+#      keytool -genkey -v -keystore <path-to-your-keystore>.jks \
+#        -keyalg RSA -keysize 2048 -validity 10000 -alias <your-key-alias>
+#
+#   2. Copy this file to `android/key.properties` (NOT committed — see
+#      android/.gitignore, which already excludes both key.properties and
+#      **/*.keystore) and fill in your real values below.
+#
+#   3. Store the keystore file itself somewhere safe OUTSIDE this repo.
+#      Losing it means you can never publish an update to the same Play
+#      Store listing again — Google cannot recover it for you.
+#
+# storePassword=REAL_KEYSTORE_PASSWORD
+# keyPassword=REAL_KEY_PASSWORD
+# keyAlias=REAL_KEY_ALIAS
+# storeFile=REAL_RELEASE_KEYSTORE_PATH (absolute, or relative to android/app/)

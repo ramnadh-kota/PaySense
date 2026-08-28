@@ -8,14 +8,15 @@ import 'package:paysense/shared/models/app_settings.dart';
 import 'package:paysense/shared/providers/app_lock_provider.dart';
 import 'package:paysense/shared/providers/auth_provider.dart';
 import 'package:paysense/shared/providers/settings_provider.dart';
+import 'package:paysense/shared/providers/account_aggregator_connections_provider.dart';
 import 'package:paysense/shared/providers/sms_review_provider.dart';
+import 'package:paysense/shared/services/account_aggregator/account_aggregator_models.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
 import 'package:paysense/shared/repositories/app_settings_repository.dart';
 import 'package:paysense/shared/repositories/sms_fingerprint_repository.dart';
 import 'package:paysense/shared/services/sms_channel.dart';
 import 'package:paysense/shared/models/user_profile.dart';
 import 'package:paysense/shared/utils/currency_formatter.dart';
-import 'package:paysense/shared/utils/financial_data_exporter.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -123,6 +124,24 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 18),
+            _SectionLabel('Connected Financial Accounts'),
+            Builder(
+              builder: (context) {
+                final connections = ref.watch(accountAggregatorConnectionsProvider).value ?? const [];
+                final activeCount = connections.where((c) => c.status != ConnectionStatus.revoked).length;
+                return AppCard(
+                  padding: EdgeInsets.zero,
+                  child: _SettingsTile(
+                    icon: Icons.account_balance_outlined,
+                    label: activeCount == 0
+                        ? 'Connect your bank accounts'
+                        : '$activeCount account${activeCount == 1 ? '' : 's'} connected',
+                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.connectedAccounts),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 18),
             _SectionLabel('Data'),
             AppCard(
               padding: EdgeInsets.zero,
@@ -130,8 +149,8 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   _SettingsTile(
                     icon: Icons.file_download_outlined,
-                    label: 'Export financial data',
-                    onTap: () => _handleExport(context),
+                    label: 'Export My Data',
+                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.dataExport),
                   ),
                   const _TileDivider(),
                   _SettingsTile(
@@ -173,11 +192,22 @@ class SettingsScreen extends ConsumerWidget {
             _SectionLabel('Account'),
             AppCard(
               padding: EdgeInsets.zero,
-              child: _SettingsTile(
-                icon: Icons.logout_rounded,
-                label: 'Log Out',
-                labelColor: AppColors.danger,
-                onTap: () => _handleLogout(context, ref),
+              child: Column(
+                children: [
+                  _SettingsTile(
+                    icon: Icons.logout_rounded,
+                    label: 'Log Out',
+                    labelColor: AppColors.danger,
+                    onTap: () => _handleLogout(context, ref),
+                  ),
+                  const _TileDivider(),
+                  _SettingsTile(
+                    icon: Icons.delete_forever_rounded,
+                    label: 'Delete Account',
+                    labelColor: AppColors.danger,
+                    onTap: () => Navigator.of(context).pushNamed(AppRoutes.accountDeletion),
+                  ),
+                ],
               ),
             ),
           ],
@@ -449,47 +479,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _handleExport(BuildContext context) async {
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    String? resultPath;
-    String? errorMessage;
-    try {
-      resultPath = await FinancialDataExporter.instance.exportToFile();
-    } catch (e) {
-      errorMessage = e.toString();
-    }
-
-    if (!context.mounted) {
-      return;
-    }
-    Navigator.of(context).pop();
-
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(errorMessage == null ? 'Export complete' : 'Export failed'),
-        content: Text(
-          errorMessage == null
-              ? 'Your financial data was exported to:\n\n$resultPath\n\n'
-                  'The file stays on this device — PaySense doesn\'t upload '
-                  'or share it anywhere.'
-              : 'Something went wrong: $errorMessage',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _handleClearFinancialData(
     BuildContext context,
     WidgetRef ref,
@@ -736,6 +725,13 @@ class _NotificationToggles extends StatelessWidget {
             value: settings.loanReminders,
             onChanged: (value) =>
                 ref.read(settingsProvider.notifier).setLoanReminders(value),
+          ),
+          _NotificationSwitchRow(
+            label: 'Proactive financial insights',
+            value: settings.insightNotifications,
+            onChanged: (value) => ref
+                .read(settingsProvider.notifier)
+                .setInsightNotifications(value),
           ),
         ],
       ),

@@ -46,12 +46,30 @@ dependencies:
   crypto: ^3.0.7
   local_auth: ^3.0.2
 
+  # CSV bank statement import
+  file_picker: ^12.1.0
+  csv: ^6.0.0
+
+  # Data export share sheet
+  share_plus: ^13.3.0
+
+  # PDF financial report generation (Milestone 6 — offline, no server round-trip)
+  pdf: ^3.11.1
+
+  # Cloud authentication (Milestone 1) — see FirebaseAuthService's class
+  # doc: added for real, correct SDK integration code, but NOT active in
+  # the running app yet (no real Firebase project exists — see
+  # lib/firebase_options.dart).
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   analyzer: ^5.13.0
   flutter_lints: ^6.0.0
+  path_provider_platform_interface: ^2.1.2
   hive_generator:
   build_runner:
 

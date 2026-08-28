@@ -40,6 +40,10 @@ class SmsFingerprintRepository {
     return processed.length;
   }
 
+  Future<void> clearAll() async {
+    await _box.delete(_key);
+  }
+
   Future<void> markProcessed(String fingerprint) async {
     final processed = (_box.get(_key) as List<Object?>? ?? const [])
         .cast<String>()

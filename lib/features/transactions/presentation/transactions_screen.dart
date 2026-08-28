@@ -10,6 +10,7 @@ import 'package:paysense/shared/utils/transaction_filters.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
 import 'widgets/transaction_filter_sheet.dart';
+import 'csv_import_screen.dart';
 import '../../dashboard/widgets/transaction_item.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
@@ -51,6 +52,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         elevation: 0,
         foregroundColor: AppColors.textPrimary,
         title: const Text('Transactions'),
+        actions: [
+          IconButton(
+            tooltip: 'Import Bank Statement',
+            icon: const Icon(Icons.upload_file_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const CsvImportScreen()),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: transactionsAsync.when(

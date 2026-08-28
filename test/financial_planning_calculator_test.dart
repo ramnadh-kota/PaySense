@@ -351,6 +351,43 @@ void main() {
     });
   });
 
+  group('9b. Goal Intelligence — weekly required contribution', () {
+    test('requiredWeeklyContribution derives from the SAME requiredMonthlyContribution, never a separate calc', () {
+      final projections = FinancialPlanningCalculator.calculateGoalProjections(
+        goals: [
+          _goal(
+            id: 'Vacation',
+            target: 100000,
+            current: 40000,
+            createdAt: DateTime(2026, 4, 20),
+            targetDate: DateTime(2026, 12, 20), // requiredMonthlyContribution = 15000
+          ),
+        ],
+        now: _now,
+      );
+      final goal = projections.single;
+      expect(goal.requiredWeeklyContribution, closeTo(15000 / 4.345, 0.01));
+    });
+
+    test('requiredWeeklyContribution is null exactly when requiredMonthlyContribution is null (target date passed)', () {
+      final projections = FinancialPlanningCalculator.calculateGoalProjections(
+        goals: [
+          _goal(
+            id: 'Vacation',
+            target: 100000,
+            current: 40000,
+            createdAt: DateTime(2026, 4, 20),
+            targetDate: DateTime(2026, 1, 1), // already passed relative to _now
+          ),
+        ],
+        now: _now,
+      );
+      final goal = projections.single;
+      expect(goal.requiredMonthlyContribution, isNull);
+      expect(goal.requiredWeeklyContribution, isNull);
+    });
+  });
+
   group('10. Goal on-track status', () {
     test('implied pace meeting or exceeding required contribution is on-track', () {
       final projections = FinancialPlanningCalculator.calculateGoalProjections(

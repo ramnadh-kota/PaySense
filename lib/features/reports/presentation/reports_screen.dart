@@ -46,6 +46,41 @@ class ReportsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
           children: [
+            // MILESTONE 7 — smallest appropriate integration: one entry
+            // point into the richer Weekly/Monthly Financial Report (with
+            // PDF export), reusing this existing Reports screen rather
+            // than adding a new top-level navigation destination.
+            AppCard(
+              padding: const EdgeInsets.all(16),
+              onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialReport),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: AppColors.lightTeal, borderRadius: BorderRadius.circular(14)),
+                    child: Icon(Icons.summarize_outlined, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Financial Report',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        ),
+                        Text(
+                          'Weekly or monthly summary, downloadable as a PDF',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             _PeriodSelector(
               selected: period,
               onChanged: (value) =>

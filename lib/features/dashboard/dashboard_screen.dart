@@ -3,10 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/shared/models/bill.dart';
+import 'package:paysense/shared/models/budget.dart';
+import 'package:paysense/shared/models/financial_safety_alert.dart';
 import 'package:paysense/shared/models/goal.dart';
 import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/models/recurring_transaction.dart';
 import 'package:paysense/shared/models/transaction.dart';
+import 'package:paysense/shared/models/wallet.dart';
+import 'package:paysense/shared/models/pain_of_paying_result.dart';
+import 'package:paysense/shared/providers/account_aggregator_connections_provider.dart';
+import 'package:paysense/shared/providers/financial_safety_provider.dart';
+import 'package:paysense/shared/providers/safe_to_spend_provider.dart';
+import 'package:paysense/shared/services/analytics_service.dart';
+import 'package:paysense/shared/services/account_aggregator/account_aggregator_models.dart';
+import 'package:paysense/shared/utils/pain_of_paying_engine.dart';
 import 'package:paysense/shared/providers/bill_provider.dart';
 import 'package:paysense/shared/providers/budget_provider.dart';
 import 'package:paysense/shared/providers/financial_action_provider.dart';
@@ -14,13 +24,17 @@ import 'package:paysense/shared/utils/financial_action_engine.dart';
 import 'package:paysense/shared/providers/financial_health_provider.dart';
 import 'package:paysense/shared/providers/financial_health_trends_provider.dart';
 import 'package:paysense/shared/utils/financial_health_trends_calculator.dart' show OverallTrajectory;
+import 'package:paysense/shared/providers/financial_insight_provider.dart';
+import 'package:paysense/shared/utils/financial_insight_engine.dart';
 import 'package:paysense/shared/providers/financial_planning_provider.dart';
 import 'package:paysense/shared/providers/goal_provider.dart';
 import 'package:paysense/shared/providers/loan_provider.dart';
 import 'package:paysense/shared/providers/notification_provider.dart';
+import 'package:paysense/shared/providers/settings_provider.dart';
 import 'package:paysense/shared/providers/recurring_transaction_provider.dart';
 import 'package:paysense/shared/providers/transaction_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
+import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/utils/currency_formatter.dart';
 import 'package:paysense/shared/utils/dashboard_helpers.dart';
 import 'package:paysense/shared/utils/financial_health_calculator.dart'
@@ -29,6 +43,7 @@ import 'package:paysense/shared/widgets/app_card.dart';
 import '../../core/routes/app_routes.dart';
 import '../transactions/presentation/add_expense_screen.dart';
 import '../transactions/presentation/add_income_screen.dart';
+import '../wallet/presentation/add_edit_wallet_screen.dart';
 import 'widgets/cash_flow_card.dart';
 import 'widgets/financial_health_card.dart';
 import 'widgets/quick_action_button.dart';
@@ -57,6 +72,12 @@ class DashboardScreen extends ConsumerWidget {
     ) {
       _maybeRecordFinancialHealthNotification(ref, next);
     });
+    ref.listen<FinancialInsightResult>(financialInsightsProvider, (
+      previous,
+      next,
+    ) {
+      _maybeRecordInsightNotification(ref, next);
+    });
     final profileAsync = ref.watch(userProfileProvider);
     final greeting = greetingFor(now, profileAsync.value?.fullName ?? '');
     final currencyCode = profileAsync.value?.currency.isNotEmpty == true
@@ -74,6 +95,18 @@ class DashboardScreen extends ConsumerWidget {
         child: transactionsAsync.when(
           data: (transactions) {
             final totals = _calculateTotals(transactions);
+            // BUG FIX: Total Assets/Total Liabilities/Net Worth previously
+            // showed hardcoded strings that never reflected real data. This
+            // reuses FinancialOverview — the SAME already-computed net-worth
+            // source of truth FinancialPlanningCalculator produces (Assets =
+            // sum of non-archived wallet balances, Liabilities = sum of
+            // active loans' outstanding balances) — rather than a second,
+            // duplicate calculation. financialPlanningProvider already
+            // watches walletsProvider/loansProvider, so this rebuilds
+            // automatically on any wallet/loan mutation, no extra
+            // invalidation wiring needed.
+            final planning = ref.watch(financialPlanningProvider);
+            final wallets = ref.watch(walletsProvider).value ?? const <Wallet>[];
             return _buildDashboardContent(
               context: context,
               greeting: greeting,
@@ -82,13 +115,17 @@ class DashboardScreen extends ConsumerWidget {
               currencyCode: currencyCode,
               totals: totals,
               transactions: transactions,
+              wallets: wallets,
               hasBudgets: (budgetsAsync.value ?? const []).isNotEmpty,
               budgetTotals: budgetTotals,
               goals: goalsAsync.value ?? const [],
               upcomingPayments: upcomingPayments,
               upcomingBills: upcomingBills,
               loanSummary: loanSummary,
-              planningReadinessScore: ref.watch(financialPlanningProvider).readinessScore,
+              planningReadinessScore: planning.readinessScore,
+              netWorth: planning.overview.netWorth,
+              totalAssets: planning.overview.totalAssets,
+              totalLiabilities: planning.overview.totalDebt,
               now: now,
             );
           },
@@ -126,8 +163,12 @@ class DashboardScreen extends ConsumerWidget {
     required List<Bill> upcomingBills,
     required LoanSummary loanSummary,
     required int planningReadinessScore,
+    required double netWorth,
+    required double totalAssets,
+    required double totalLiabilities,
     required DateTime now,
     List<Transaction> transactions = const <Transaction>[],
+    List<Wallet> wallets = const <Wallet>[],
   }) {
     final recentTransactions = transactions.toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -172,6 +213,14 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 12),
+              IconButton(
+                tooltip: 'Search PaySense',
+                icon: Icon(Icons.search_rounded, color: AppColors.textPrimary),
+                onPressed: () {
+                  AnalyticsService.instance.log(AnalyticsEvent.featureSearchOpened);
+                  Navigator.of(context).pushNamed(AppRoutes.featureSearch);
+                },
+              ),
               const _NotificationBell(),
               const SizedBox(width: 12),
               CircleAvatar(
@@ -184,6 +233,22 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
           ),
+          // CONSUMER MONETIZATION FOUNDATION (PHASE 12) — "Let's build
+          // your financial picture" checklist. A pure ADDITION: renders
+          // nothing once all 4 real building blocks exist, so an
+          // established account never sees this at all.
+          if (!(wallets.isNotEmpty &&
+              transactions.any((t) => t.transactionType.toLowerCase() == 'income') &&
+              transactions.any((t) => t.transactionType.toLowerCase() == 'expense') &&
+              goals.isNotEmpty)) ...[
+            const SizedBox(height: 16),
+            _GettingStartedChecklist(
+              hasWallet: wallets.isNotEmpty,
+              hasIncome: transactions.any((t) => t.transactionType.toLowerCase() == 'income'),
+              hasExpense: transactions.any((t) => t.transactionType.toLowerCase() == 'expense'),
+              hasGoal: goals.isNotEmpty,
+            ),
+          ],
           const SizedBox(height: 24),
           AppCard(
             padding: const EdgeInsets.all(24),
@@ -191,38 +256,15 @@ class DashboardScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Total Net Worth',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '+12.4%',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Total Net Worth',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  currencyFormatter.format(totals.balance),
+                  currencyFormatter.format(netWorth),
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -234,14 +276,14 @@ class DashboardScreen extends ConsumerWidget {
                     Expanded(
                       child: _InfoPill(
                         title: 'Total Assets',
-                        value: '₹1,68,000',
+                        value: currencyFormatter.format(totalAssets),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: _InfoPill(
                         title: 'Total Liabilities',
-                        value: '₹43,440',
+                        value: currencyFormatter.format(totalLiabilities),
                       ),
                     ),
                   ],
@@ -341,30 +383,36 @@ class DashboardScreen extends ConsumerWidget {
                       color: AppColors.textSecondary,
                     ),
                   )
-                : Row(
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: _TodayStat(
-                          label: 'Spent',
-                          value: currencyFormatter.format(todaysMoney.spent),
-                          color: AppColors.danger,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _TodayStat(
+                              label: 'Spent',
+                              value: currencyFormatter.format(todaysMoney.spent),
+                              color: AppColors.danger,
+                            ),
+                          ),
+                          Expanded(
+                            child: _TodayStat(
+                              label: 'Income',
+                              value: currencyFormatter.format(todaysMoney.income),
+                              color: AppColors.success,
+                            ),
+                          ),
+                          Expanded(
+                            child: _TodayStat(
+                              label: 'Net',
+                              value:
+                                  '${todaysMoney.net >= 0 ? '+' : ''}${currencyFormatter.format(todaysMoney.net)}',
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        child: _TodayStat(
-                          label: 'Income',
-                          value: currencyFormatter.format(todaysMoney.income),
-                          color: AppColors.success,
-                        ),
-                      ),
-                      Expanded(
-                        child: _TodayStat(
-                          label: 'Net',
-                          value:
-                              '${todaysMoney.net >= 0 ? '+' : ''}${currencyFormatter.format(todaysMoney.net)}',
-                          color: AppColors.primary,
-                        ),
-                      ),
+                      _SpendingAwarenessLine(transactions: transactions, goals: goals, now: now),
                     ],
                   ),
           ),
@@ -960,7 +1008,12 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           const _FinancialActionsSection(),
           const SizedBox(height: 10),
+          const _FinancialSafetyEntryLine(),
+          const _BankConnectEntryLine(),
           const _FinancialTrendEntryLine(),
+          const _ProactiveInsightsSection(),
+          const _FinancialTimelineEntryLine(),
+          const _FinancialCompareEntryLine(),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1083,6 +1136,40 @@ void _maybeRecordFinancialHealthNotification(
   );
 }
 
+/// PROACTIVE FINANCIAL INSIGHTS 1.0 (PHASE 7) — mirrors
+/// [_maybeRecordFinancialHealthNotification] exactly. Only critical/high
+/// priority insights are meaningful enough to notify about; [insight.id]
+/// (already `type:entity:period`) is reused directly as the notification id,
+/// so [NotificationsNotifier.addIfNotExists] naturally prevents duplicate
+/// notifications for the same insight across rebuilds/app launches within
+/// the same period. Gated on the user's own notification preference.
+void _maybeRecordInsightNotification(
+  WidgetRef ref,
+  FinancialInsightResult result,
+) {
+  final insightNotificationsEnabled =
+      ref.read(settingsProvider).value?.insightNotifications ?? true;
+  if (!insightNotificationsEnabled) {
+    return;
+  }
+  for (final insight in result.insights) {
+    if (insight.priority != InsightPriority.critical &&
+        insight.priority != InsightPriority.high) {
+      continue;
+    }
+    ref.read(notificationsProvider.notifier).addIfNotExists(
+      AppNotification(
+        id: insight.id,
+        title: insight.title,
+        message: insight.explanation,
+        type: NotificationType.insight.name,
+        createdAt: DateTime.now(),
+        relatedRoute: insight.actionRoute,
+      ),
+    );
+  }
+}
+
 String _formatAmount(double amount, String transactionType, String currencyCode) {
   final sign = transactionType.toLowerCase() == 'income' ? '+' : '-';
   return '$sign${CurrencyFormatter.symbolFor(currencyCode)}${amount.toStringAsFixed(0)}';
@@ -1194,6 +1281,225 @@ class _FinancialActionsSection extends ConsumerWidget {
 /// integrated directly under the existing "Your Financial Actions"
 /// section rather than adding a separate card, per the milestone's own
 /// "reuse this area instead of adding unnecessary cards" instruction.
+/// PAIN-OF-PAYING ENGINE — the Dashboard's compact "Spending Awareness"
+/// line, embedded inside the existing "Today's Money" card rather than a
+/// new section (per the milestone's own "don't overload the dashboard"
+/// instruction). Evaluates only TODAY's expense transactions — a small,
+/// bounded set — so this stays cheap. Renders nothing when there's
+/// nothing worth flagging, exactly like the rest of this dashboard's
+/// entry lines.
+class _SpendingAwarenessLine extends ConsumerWidget {
+  const _SpendingAwarenessLine({required this.transactions, required this.goals, required this.now});
+
+  final List<Transaction> transactions;
+  final List<Goal> goals;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final todaysExpenses = transactions.where(
+      (t) =>
+          t.transactionType.toLowerCase() == 'expense' &&
+          t.createdAt.year == now.year &&
+          t.createdAt.month == now.month &&
+          t.createdAt.day == now.day,
+    ).toList();
+    if (todaysExpenses.isEmpty) return const SizedBox.shrink();
+
+    final budgets = ref.watch(budgetsProvider).value ?? const <Budget>[];
+    final safeToSpend = ref.watch(safeToSpendProvider);
+
+    var needsAttention = 0;
+    for (final t in todaysExpenses) {
+      final result = PainOfPayingEngine.evaluate(
+        amount: t.amount,
+        categoryId: t.categoryId,
+        transactions: transactions,
+        budgets: budgets,
+        goals: goals,
+        now: now,
+        safeToSpend: safeToSpend,
+        excludeTransactionId: t.id,
+      );
+      if (result.level != PainOfPayingLevel.low) needsAttention++;
+    }
+    if (needsAttention == 0) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: InkWell(
+        onTap: () => Navigator.of(context).pushNamed(AppRoutes.transactions),
+        borderRadius: BorderRadius.circular(10),
+        child: Row(
+          children: [
+            Icon(Icons.visibility_outlined, size: 15, color: AppColors.warning),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                '$needsAttention purchase${needsAttention == 1 ? '' : 's'} today need${needsAttention == 1 ? 's' : ''} attention',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// FINANCIAL SAFETY ENGINE — PART J. Highest-priority compact entry
+/// point ("Money -> Risk -> Upcoming -> Insight"). When there are no
+/// active alerts this shows a calm positive confirmation rather than
+/// nothing at all — the dashboard's job is to answer "how financially
+/// safe am I right now", and silence doesn't answer that.
+class _FinancialSafetyEntryLine extends ConsumerWidget {
+  const _FinancialSafetyEntryLine();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final safetyAsync = ref.watch(financialSafetyAlertsProvider);
+    if (safetyAsync.isLoading) return const SizedBox.shrink();
+    final alerts = safetyAsync.value ?? const [];
+
+    if (alerts.isEmpty) {
+      return InkWell(
+        onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialAlerts),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 16, color: AppColors.success),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'No safety concerns right now',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final topAlert = alerts.first;
+    final color = switch (topAlert.severity) {
+      FinancialSafetyAlertSeverity.high => AppColors.danger,
+      FinancialSafetyAlertSeverity.attention => AppColors.warning,
+      FinancialSafetyAlertSeverity.info => AppColors.primary,
+    };
+
+    return InkWell(
+      onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialAlerts),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, size: 16, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                topAlert.title.replaceFirst('PaySense insight: ', ''),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (alerts.length > 1)
+              Text(
+                '+${alerts.length - 1} more',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// ACCOUNT AGGREGATOR — PART F. A compact Dashboard entry point,
+/// mirroring [_FinancialTrendEntryLine]'s exact visual pattern: no
+/// heading, no extra spacing, reads live connection state so its copy
+/// always reflects reality (never "connected" before a sync actually
+/// confirmed it, matching PHASE 4's own rule).
+class _BankConnectEntryLine extends ConsumerWidget {
+  const _BankConnectEntryLine();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final connections = ref.watch(accountAggregatorConnectionsProvider).value ?? const [];
+    final active = connections.where((c) => c.status != ConnectionStatus.revoked).toList();
+
+    String title;
+    IconData icon;
+    Color color;
+    String route = AppRoutes.connectedAccounts;
+
+    if (active.isEmpty) {
+      title = 'Connect your bank →';
+      icon = Icons.account_balance_outlined;
+      color = AppColors.primary;
+      route = AppRoutes.bankConnect;
+    } else if (active.any((c) => c.status == ConnectionStatus.failed)) {
+      title = 'Bank sync needs attention';
+      icon = Icons.error_outline_rounded;
+      color = AppColors.danger;
+    } else {
+      final mostRecentSync = active
+          .map((c) => c.lastSyncedAt)
+          .whereType<DateTime>()
+          .fold<DateTime?>(null, (latest, d) => latest == null || d.isAfter(latest) ? d : latest);
+      if (mostRecentSync == null) {
+        title = 'Finish connecting your accounts';
+        icon = Icons.account_balance_outlined;
+        color = AppColors.warning;
+      } else {
+        final minutesAgo = DateTime.now().difference(mostRecentSync).inMinutes;
+        title = minutesAgo < 60
+            ? 'Last synced $minutesAgo min ago'
+            : 'Last synced ${DateFormat('d MMM').format(mostRecentSync)}';
+        icon = Icons.account_balance_rounded;
+        color = AppColors.success;
+      }
+    }
+
+    return InkWell(
+      onTap: () => Navigator.of(context).pushNamed(route),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _FinancialTrendEntryLine extends ConsumerWidget {
   const _FinancialTrendEntryLine();
 
@@ -1243,6 +1549,331 @@ class _FinancialTrendEntryLine extends ConsumerWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// PROACTIVE FINANCIAL INSIGHTS 1.0 (PHASE 4) — up to 3 insights, reusing
+/// the [_FinancialActionCard] icon-chip-in-[AppCard] visual language.
+/// Renders nothing at all (no heading, no spacing) when there are no
+/// insights, so an empty result never adds clutter to the Dashboard.
+class _ProactiveInsightsSection extends ConsumerWidget {
+  const _ProactiveInsightsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final result = ref.watch(financialInsightsProvider);
+
+    if (result.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Insights for You',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final insight in result.insights) ...[
+            _InsightCard(insight: insight),
+            if (insight != result.insights.last) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  const _InsightCard({required this.insight});
+
+  final FinancialInsight insight;
+
+  (IconData, Color, Color) _visualsFor() {
+    switch (insight.priority) {
+      case InsightPriority.critical:
+      case InsightPriority.high:
+        return (Icons.warning_amber_rounded, AppColors.danger, AppColors.softCoral);
+      case InsightPriority.medium:
+        return (Icons.info_outline_rounded, AppColors.warning, AppColors.lightTeal);
+      case InsightPriority.low:
+        return (Icons.lightbulb_outline_rounded, AppColors.textSecondary, AppColors.surfaceVariant);
+      case InsightPriority.positive:
+        return (Icons.emoji_events_rounded, AppColors.success, AppColors.lightTeal);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, iconColor, chipTint) = _visualsFor();
+    final route = insight.actionRoute;
+
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      onTap: route == null
+          ? null
+          : () => Navigator.of(context).pushNamed(route),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: chipTint, borderRadius: BorderRadius.circular(10)),
+            child: Icon(icon, color: iconColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  insight.title,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  insight.explanation,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${insight.recommendedAction} →',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// FINANCIAL INTELLIGENCE TIMELINE 1.0 (PHASE 6) — ONE compact entry line,
+/// mirroring [_FinancialTrendEntryLine]'s exact pattern: no heading, no
+/// extra spacing of its own, never rearranges the cards around it.
+class _FinancialTimelineEntryLine extends ConsumerWidget {
+  const _FinancialTimelineEntryLine();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return InkWell(
+      onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialTimeline),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(Icons.history_rounded, size: 16, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'See your financial timeline',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              'View events →',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// COMPARE PERIODS 1.0 (PHASE 5) — ONE compact entry line, mirroring
+/// [_FinancialTrendEntryLine]/[_FinancialTimelineEntryLine]'s exact
+/// pattern: no heading, no extra spacing of its own, never rearranges the
+/// cards around it, no new Quick Action.
+class _FinancialCompareEntryLine extends StatelessWidget {
+  const _FinancialCompareEntryLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialCompare),
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(Icons.compare_arrows_rounded, size: 16, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Compare Periods',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              "See what's changed →",
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// CONSUMER MONETIZATION FOUNDATION (PHASE 12) — "Let's build your
+/// financial picture." All 4 checks come from real, already-watched data
+/// (wallets/transactions/goals) — never fabricated, never blocking; the
+/// user can leave any item incomplete indefinitely.
+class _GettingStartedChecklist extends StatelessWidget {
+  const _GettingStartedChecklist({
+    required this.hasWallet,
+    required this.hasIncome,
+    required this.hasExpense,
+    required this.hasGoal,
+  });
+
+  final bool hasWallet;
+  final bool hasIncome;
+  final bool hasExpense;
+  final bool hasGoal;
+
+  int get _doneCount => [hasWallet, hasIncome, hasExpense, hasGoal].where((b) => b).length;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  "Let's build your financial picture",
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                '$_doneCount/4',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '$_doneCount of 4 done — your Financial Snapshot is getting smarter.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: _doneCount / 4,
+              minHeight: 6,
+              backgroundColor: AppColors.surfaceVariant,
+              valueColor: AlwaysStoppedAnimation(AppColors.primary),
+            ),
+          ),
+          const SizedBox(height: 14),
+          _ChecklistRow(
+            label: 'Wallet',
+            done: hasWallet,
+            onTap: hasWallet
+                ? null
+                : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddEditWalletScreen())),
+          ),
+          _ChecklistRow(
+            label: 'Income',
+            done: hasIncome,
+            onTap: hasIncome
+                ? null
+                : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddIncomeScreen())),
+          ),
+          _ChecklistRow(
+            label: 'Expense',
+            done: hasExpense,
+            onTap: hasExpense
+                ? null
+                : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AddExpenseScreen())),
+          ),
+          _ChecklistRow(
+            label: 'Goal',
+            done: hasGoal,
+            onTap: hasGoal ? null : () => Navigator.of(context).pushNamed(AppRoutes.goals),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecklistRow extends StatelessWidget {
+  const _ChecklistRow({required this.label, required this.done, required this.onTap});
+
+  final String label;
+  final bool done;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(
+              done ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
+              size: 20,
+              color: done ? AppColors.success : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: done ? AppColors.textSecondary : AppColors.textPrimary,
+                  decoration: done ? TextDecoration.lineThrough : null,
+                ),
+              ),
+            ),
+            if (!done) Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textSecondary),
           ],
         ),
       ),

@@ -98,6 +98,44 @@ class FinancialContext {
   /// row.
   final Map<String, dynamic> financialHealthTrendsContext;
 
+  /// PROACTIVE FINANCIAL INSIGHTS 1.0 — the up-to-3 deterministic insights
+  /// from [FinancialInsightEngine], never a raw wallet/transaction/SMS row.
+  /// The AI may explain these but must never recompute or contradict the
+  /// figures here.
+  final Map<String, dynamic> financialInsightsContext;
+
+  /// FINANCIAL INTELLIGENCE TIMELINE 1.0 — the chronological event log
+  /// (from [FinancialTimelineCalculator]) plus the momentum snapshot
+  /// (from [FinancialMomentumCalculator]), never a raw transaction row.
+  /// The AI may explain these but must never invent an event or compute a
+  /// conflicting figure.
+  final Map<String, dynamic> timelineContext;
+
+  /// COMPARE PERIODS 1.0 — the deterministic period-vs-period comparison
+  /// (from [ComparePeriodsCalculator], defaulted to "this month vs last
+  /// month"), never a raw transaction row. The AI may explain this but
+  /// must never recalculate, contradict, or invent a comparison figure.
+  final Map<String, dynamic> comparePeriodsContext;
+
+  /// ACCOUNT AGGREGATOR — PART G. Aggregated, privacy-safe connection
+  /// metadata ONLY (connected-account count, last-synced timestamp,
+  /// per-connection status, and the most recent sync's new/duplicate/
+  /// needs-review counts) — never a raw AA transaction, account number,
+  /// or any credential. The transactions an AA sync actually imports
+  /// already reach the AI through the EXISTING transaction-based context
+  /// fields above once persisted, exactly like SMS/CSV/manual entries —
+  /// this map exists only so the AI can answer "did my bank sync
+  /// succeed" / "what accounts are connected" / "when was my last sync"
+  /// without ever needing broader data access.
+  final Map<String, dynamic> accountAggregatorContext;
+
+  /// FINANCIAL SAFETY ENGINE — PART K. The active, non-dismissed
+  /// deterministic safety alerts (see `FinancialSafetyEngine`) as
+  /// title/explanation/severity only — never a raw transaction. Lets the
+  /// AI answer "why is my spending higher this month?" by explaining an
+  /// ALREADY-COMPUTED alert, never by inventing its own analysis.
+  final Map<String, dynamic> financialSafetyContext;
+
   const FinancialContext({
     required this.fullName,
     required this.monthlyIncome,
@@ -152,6 +190,11 @@ class FinancialContext {
     this.financialActionsContext = const {},
     this.affordabilityContext = const {},
     this.financialHealthTrendsContext = const {},
+    this.financialInsightsContext = const {},
+    this.timelineContext = const {},
+    this.comparePeriodsContext = const {},
+    this.accountAggregatorContext = const {},
+    this.financialSafetyContext = const {},
   });
 
   FinancialContext copyWith({
@@ -208,6 +251,11 @@ class FinancialContext {
     Map<String, dynamic>? financialActionsContext,
     Map<String, dynamic>? affordabilityContext,
     Map<String, dynamic>? financialHealthTrendsContext,
+    Map<String, dynamic>? financialInsightsContext,
+    Map<String, dynamic>? timelineContext,
+    Map<String, dynamic>? comparePeriodsContext,
+    Map<String, dynamic>? accountAggregatorContext,
+    Map<String, dynamic>? financialSafetyContext,
   }) {
     return FinancialContext(
       fullName: fullName ?? this.fullName,
@@ -275,6 +323,11 @@ class FinancialContext {
       financialActionsContext: financialActionsContext ?? this.financialActionsContext,
       affordabilityContext: affordabilityContext ?? this.affordabilityContext,
       financialHealthTrendsContext: financialHealthTrendsContext ?? this.financialHealthTrendsContext,
+      financialInsightsContext: financialInsightsContext ?? this.financialInsightsContext,
+      timelineContext: timelineContext ?? this.timelineContext,
+      comparePeriodsContext: comparePeriodsContext ?? this.comparePeriodsContext,
+      accountAggregatorContext: accountAggregatorContext ?? this.accountAggregatorContext,
+      financialSafetyContext: financialSafetyContext ?? this.financialSafetyContext,
     );
   }
 
@@ -333,6 +386,11 @@ class FinancialContext {
       'financialActionsContext': financialActionsContext,
       'affordabilityContext': affordabilityContext,
       'financialHealthTrendsContext': financialHealthTrendsContext,
+      'financialInsightsContext': financialInsightsContext,
+      'timelineContext': timelineContext,
+      'comparePeriodsContext': comparePeriodsContext,
+      'accountAggregatorContext': accountAggregatorContext,
+      'financialSafetyContext': financialSafetyContext,
     };
   }
 
@@ -720,6 +778,11 @@ class FinancialContext {
       financialActionsContext: mapField('financialActionsContext'),
       affordabilityContext: mapField('affordabilityContext'),
       financialHealthTrendsContext: mapField('financialHealthTrendsContext'),
+      financialInsightsContext: mapField('financialInsightsContext'),
+      timelineContext: mapField('timelineContext'),
+      comparePeriodsContext: mapField('comparePeriodsContext'),
+      accountAggregatorContext: mapField('accountAggregatorContext'),
+      financialSafetyContext: mapField('financialSafetyContext'),
     );
   }
 }

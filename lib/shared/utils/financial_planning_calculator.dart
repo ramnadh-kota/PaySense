@@ -68,6 +68,7 @@ class FinancialOverview {
     required this.monthlyFixedCommitments,
     required this.totalDebt,
     required this.emergencyFundCurrent,
+    this.totalAssets = 0.0,
   });
 
   /// Sum of wallet balances minus outstanding loan balances. Does not
@@ -85,6 +86,14 @@ class FinancialOverview {
 
   final double monthlyFixedCommitments;
   final double totalDebt;
+
+  /// Sum of non-archived wallet balances — the SAME `totalWalletBalance`
+  /// already used to compute [netWorth] above, just also exposed on its
+  /// own so callers (e.g. the Dashboard's Total Assets card) can show it
+  /// without re-summing wallets a second time. Defaults to 0 only for the
+  /// rare direct-construction call site (a test fixture) that predates this
+  /// field and doesn't exercise it.
+  final double totalAssets;
 
   /// Sum of balances across the user-configured emergency-fund-eligible
   /// wallets — 0 (not fabricated) when none are configured.
@@ -218,6 +227,18 @@ class GoalProjection {
   final double? contributionGap;
 
   final GoalProjectionStatus status;
+}
+
+/// GOAL INTELLIGENCE — a weekly view of the SAME [GoalProjection.requiredMonthlyContribution]
+/// figure, not a separately-derived weekly pace (there is no weekly
+/// contribution-history data to derive one from). `4.345` is the average
+/// number of weeks in a month (365.25 / 12 / 7) — a fixed calendar
+/// constant, never a fabricated figure.
+extension GoalProjectionWeekly on GoalProjection {
+  static const double weeksPerMonth = 4.345;
+
+  double? get requiredWeeklyContribution =>
+      requiredMonthlyContribution == null ? null : requiredMonthlyContribution! / weeksPerMonth;
 }
 
 // ---------------------------------------------------------------------------
@@ -608,6 +629,7 @@ class FinancialPlanningCalculator {
       monthlyFixedCommitments: commitments.total,
       totalDebt: totalOutstandingDebt,
       emergencyFundCurrent: emergencyFund.current,
+      totalAssets: totalWalletBalance,
     );
 
     final cashFlowConsistencyScore = _cashFlowConsistencyScore(analytics.monthlyTotals);

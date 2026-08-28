@@ -4,10 +4,13 @@ import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/constants/disclaimers.dart';
 import 'package:paysense/core/routes/app_routes.dart';
+import 'package:paysense/shared/models/entitlement.dart';
+import 'package:paysense/shared/providers/entitlement_provider.dart';
 import 'package:paysense/shared/providers/tax_provider.dart';
 import 'package:paysense/shared/utils/tax_calculator.dart';
 import 'package:paysense/shared/utils/tax_income_estimator.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
+import 'package:paysense/shared/widgets/premium_discovery_banner.dart';
 
 final _money = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -177,6 +180,19 @@ class _TaxPlannerScreenState extends ConsumerState<TaxPlannerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // CONSUMER MONETIZATION FOUNDATION (PHASE 7) — purely
+              // additive; the calculator below remains fully usable
+              // regardless of tier, letting the user understand the
+              // feature before deciding to upgrade.
+              if (!canAccessEntitlement(ref, Entitlement.taxPlanner)) ...[
+                const PremiumDiscoveryBanner(
+                  title: 'Unlock your personalized tax planning',
+                  subtitle: 'Save this scenario and get proactive tax-saving reminders with PaySense Plus.',
+                  ctaLabel: 'Plus',
+                  analyticsContext: 'tax_planner',
+                ),
+                const SizedBox(height: 18),
+              ],
               _SectionTitle('Income'),
               const SizedBox(height: 8),
               _IncomeSection(

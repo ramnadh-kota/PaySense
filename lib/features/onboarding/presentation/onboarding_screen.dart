@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/routes/app_routes.dart';
+import 'package:paysense/shared/models/onboarding_models.dart';
+import 'package:paysense/shared/repositories/app_settings_repository.dart';
+import 'package:paysense/shared/repositories/user_profile_repository.dart';
+import 'package:paysense/shared/services/analytics_service.dart';
 
 class _OnboardingPageData {
   const _OnboardingPageData({
@@ -73,8 +77,35 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  void _finishOnboarding() {
-    Navigator.of(context).pushReplacementNamed(AppRoutes.profileSetup);
+  /// CONSUMER MONETIZATION FOUNDATION (PHASE 13) — "resume intelligently":
+  /// a user who already progressed past this intro carousel in an earlier
+  /// session (e.g. they saved a profile, then closed the app) is routed
+  /// straight to whichever onboarding step comes next, not back to the
+  /// very start.
+  Future<void> _finishOnboarding() async {
+    final settings = AppSettingsRepository.instance;
+    final profile = await UserProfileRepository.instance.getProfile();
+    final stage = OnboardingFlow.resumeStage(
+      profileExists: profile != null,
+      goalsSet: settings.onboardingGoalsSet(),
+      incomeSourceSet: settings.onboardingIncomeSourceSet(),
+      buildPictureAcknowledged: settings.onboardingBuildPictureAcknowledged(),
+      snapshotViewed: settings.onboardingSnapshotViewed(),
+      ahaMomentViewed: settings.onboardingAhaMomentViewed(),
+    );
+
+    if (!mounted) return;
+
+    final route = switch (stage) {
+      OnboardingStage.profile => AppRoutes.profileSetup,
+      OnboardingStage.goals => AppRoutes.onboardingGoals,
+      OnboardingStage.incomeSource => AppRoutes.onboardingIncomeSource,
+      OnboardingStage.buildPicture => AppRoutes.onboardingBuildPicture,
+      OnboardingStage.snapshot => AppRoutes.financialSnapshot,
+      OnboardingStage.ahaMoment || OnboardingStage.completed => AppRoutes.ahaMoment,
+    };
+    AnalyticsService.instance.log(AnalyticsEvent.onboardingStarted, metadata: {'step': 'intro'});
+    Navigator.of(context).pushReplacementNamed(route);
   }
 
   @override

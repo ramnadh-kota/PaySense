@@ -5,6 +5,7 @@ import 'package:paysense/features/goals/presentation/widgets/goal_card.dart';
 import 'package:paysense/features/goals/presentation/widgets/goal_form_sheet.dart';
 import 'package:paysense/features/goals/presentation/widgets/goal_summary_card.dart';
 import 'package:paysense/shared/models/goal.dart';
+import 'package:paysense/shared/providers/financial_planning_provider.dart';
 import 'package:paysense/shared/providers/goal_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
@@ -15,6 +16,12 @@ class GoalsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final goalsAsync = ref.watch(goalsProvider);
     final totals = ref.watch(goalTotalsProvider);
+    // GOAL INTELLIGENCE — reuses FinancialPlanningCalculator's EXISTING
+    // GoalProjection output (already computed for the Financial Planning
+    // screen) rather than a second projection engine.
+    final projectionsById = {
+      for (final p in ref.watch(financialPlanningProvider).goalProjections) p.goalId: p,
+    };
     final percentageSaved = totals.totalTarget > 0
         ? (totals.totalSaved / totals.totalTarget * 100).clamp(0.0, 100.0)
         : 0.0;
@@ -92,6 +99,7 @@ class GoalsScreen extends ConsumerWidget {
                               padding: const EdgeInsets.only(bottom: 12),
                               child: GoalCard(
                                 goal: goal,
+                                projection: projectionsById[goal.id],
                                 onEdit: () =>
                                     _showGoalForm(context, ref, goal: goal),
                                 onDelete: () =>

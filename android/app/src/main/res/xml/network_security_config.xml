@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PLAY STORE / SECURITY HARDENING: explicitly disallows cleartext (plain
+  HTTP) traffic for every domain, app-wide. This is defense-in-depth on
+  top of the platform default (targetSdk >= 28 already disallows
+  cleartext unless explicitly enabled) — being explicit here means the
+  policy survives even if a future targetSdk change or a plugin's own
+  manifest merge tries to relax it.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>

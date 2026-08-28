@@ -17,6 +17,7 @@ class AppSettingsRepository {
   static const String _billRemindersKey = 'notifyBillReminders';
   static const String _recurringRemindersKey = 'notifyRecurringReminders';
   static const String _loanRemindersKey = 'notifyLoanReminders';
+  static const String _insightNotificationsKey = 'notifyInsights';
   static const String _appLockEnabledKey = 'appLockEnabled';
   static const String _appLockMethodKey = 'appLockMethod';
   static const String _appLockTimeoutKey = 'appLockTimeout';
@@ -31,6 +32,18 @@ class AppSettingsRepository {
   static const String _emergencyFundEligibleWalletIdsKey =
       'emergencyFundEligibleWalletIds';
   static const String _emergencyFundTargetMonthsKey = 'emergencyFundTargetMonths';
+
+  // ---- Consumer Monetization Foundation: onboarding personalization/resume ----
+  //
+  // Presentation-only — see OnboardingPersonalization. Never feeds a
+  // financial calculation.
+  static const String _onboardingGoalsKey = 'onboardingGoals';
+  static const String _onboardingIncomeSourceKey = 'onboardingIncomeSource';
+  static const String _onboardingGoalsSetKey = 'onboardingGoalsSet';
+  static const String _onboardingIncomeSourceSetKey = 'onboardingIncomeSourceSet';
+  static const String _onboardingBuildPictureAcknowledgedKey = 'onboardingBuildPictureAcknowledged';
+  static const String _onboardingSnapshotViewedKey = 'onboardingSnapshotViewed';
+  static const String _onboardingAhaMomentViewedKey = 'onboardingAhaMomentViewed';
 
   Box get _box => Hive.box(_boxName);
 
@@ -63,6 +76,7 @@ class AppSettingsRepository {
       recurringReminders: (_box.get(_recurringRemindersKey) as bool?) ?? true,
       loanReminders: (_box.get(_loanRemindersKey) as bool?) ?? true,
       smsAutomationEnabled: (_box.get(_smsAutomationEnabledKey) as bool?) ?? false,
+      insightNotifications: (_box.get(_insightNotificationsKey) as bool?) ?? true,
     );
   }
 
@@ -86,6 +100,10 @@ class AppSettingsRepository {
     await _box.put(_smsAutomationEnabledKey, enabled);
   }
 
+  Future<void> setInsightNotifications(bool enabled) async {
+    await _box.put(_insightNotificationsKey, enabled);
+  }
+
   /// Synchronous reads used by non-UI call sites (notification scheduling)
   /// that only need a single flag and shouldn't await a full settings load.
   bool billRemindersEnabled() => (_box.get(_billRemindersKey) as bool?) ?? true;
@@ -94,6 +112,9 @@ class AppSettingsRepository {
       (_box.get(_recurringRemindersKey) as bool?) ?? true;
 
   bool loanRemindersEnabled() => (_box.get(_loanRemindersKey) as bool?) ?? true;
+
+  bool insightNotificationsEnabled() =>
+      (_box.get(_insightNotificationsKey) as bool?) ?? true;
 
   /// Synchronous read used by the SMS processor, which runs outside a
   /// normal widget build cycle (app startup, receiver-triggered flush) and
@@ -157,6 +178,52 @@ class AppSettingsRepository {
 
   Future<void> setEmergencyFundTargetMonths(int months) async {
     await _box.put(_emergencyFundTargetMonthsKey, months);
+  }
+
+  // ---- Consumer Monetization Foundation: onboarding personalization/resume ----
+
+  /// The raw [FinancialGoalPreference] names the user selected on "What
+  /// matters most to you?" — empty (never null) when not yet answered.
+  List<String> onboardingGoals() {
+    final raw = _box.get(_onboardingGoalsKey) as List<Object?>?;
+    return raw?.cast<String>() ?? const [];
+  }
+
+  Future<void> setOnboardingGoals(List<String> goals) async {
+    await _box.put(_onboardingGoalsKey, goals);
+    await _box.put(_onboardingGoalsSetKey, true);
+  }
+
+  bool onboardingGoalsSet() => (_box.get(_onboardingGoalsSetKey) as bool?) ?? false;
+
+  /// The raw [IncomeSourceType] name the user selected — null when not yet
+  /// answered.
+  String? onboardingIncomeSource() => _box.get(_onboardingIncomeSourceKey) as String?;
+
+  Future<void> setOnboardingIncomeSource(String incomeSource) async {
+    await _box.put(_onboardingIncomeSourceKey, incomeSource);
+    await _box.put(_onboardingIncomeSourceSetKey, true);
+  }
+
+  bool onboardingIncomeSourceSet() => (_box.get(_onboardingIncomeSourceSetKey) as bool?) ?? false;
+
+  bool onboardingBuildPictureAcknowledged() =>
+      (_box.get(_onboardingBuildPictureAcknowledgedKey) as bool?) ?? false;
+
+  Future<void> setOnboardingBuildPictureAcknowledged() async {
+    await _box.put(_onboardingBuildPictureAcknowledgedKey, true);
+  }
+
+  bool onboardingSnapshotViewed() => (_box.get(_onboardingSnapshotViewedKey) as bool?) ?? false;
+
+  Future<void> setOnboardingSnapshotViewed() async {
+    await _box.put(_onboardingSnapshotViewedKey, true);
+  }
+
+  bool onboardingAhaMomentViewed() => (_box.get(_onboardingAhaMomentViewedKey) as bool?) ?? false;
+
+  Future<void> setOnboardingAhaMomentViewed() async {
+    await _box.put(_onboardingAhaMomentViewedKey, true);
   }
 
   AppThemeMode _themeModeFromKey(String? key) {

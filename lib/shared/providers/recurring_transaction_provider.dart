@@ -52,7 +52,7 @@ final recurringTotalsProvider = Provider<RecurringTotals>((ref) {
   double monthlyIncome = 0;
   double monthlyExpense = 0;
   for (final item in active) {
-    final monthlyAmount = _monthlyEquivalent(item.amount, item.frequency);
+    final monthlyAmount = item.monthlyEquivalentAmount;
     if (item.transactionType.toLowerCase() == 'income') {
       monthlyIncome += monthlyAmount;
     } else {
@@ -68,20 +68,6 @@ final recurringTotalsProvider = Provider<RecurringTotals>((ref) {
     nextPaymentDate: active.isEmpty ? null : active.first.nextDueDate,
   );
 });
-
-double _monthlyEquivalent(double amount, String frequency) {
-  switch (frequency) {
-    case 'Daily':
-      return amount * 30;
-    case 'Weekly':
-      return amount * (30 / 7);
-    case 'Yearly':
-      return amount / 12;
-    case 'Monthly':
-    default:
-      return amount;
-  }
-}
 
 class RecurringTotals {
   RecurringTotals({

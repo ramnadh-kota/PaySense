@@ -5,11 +5,22 @@ import 'package:paysense/shared/models/notification_record.dart';
 import 'package:paysense/shared/providers/notification_provider.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
 
-class NotificationCenterScreen extends ConsumerWidget {
+class NotificationCenterScreen extends ConsumerStatefulWidget {
   const NotificationCenterScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NotificationCenterScreen> createState() =>
+      _NotificationCenterScreenState();
+}
+
+class _NotificationCenterScreenState
+    extends ConsumerState<NotificationCenterScreen> {
+  // PHASE 8 — "Recent insights" is a derived filter over the existing
+  // notification history (type == insight), not a new persistent model.
+  bool _insightsOnly = false;
+
+  @override
+  Widget build(BuildContext context) {
     final notificationsAsync = ref.watch(notificationsProvider);
     final unreadCount = ref.watch(unreadNotificationCountProvider);
 
@@ -46,17 +57,39 @@ class NotificationCenterScreen extends ConsumerWidget {
             ),
           ),
           data: (notifications) {
-            if (notifications.isEmpty) {
-              return const _EmptyState();
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(24),
-              itemCount: notifications.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final notification = notifications[index];
-                return _NotificationTile(notification: notification);
-              },
+            final visible = _insightsOnly
+                ? notifications
+                      .where((n) => n.notificationType == NotificationType.insight)
+                      .toList()
+                : notifications;
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilterChip(
+                      label: const Text('Recent insights'),
+                      avatar: const Icon(Icons.auto_awesome_rounded, size: 16),
+                      selected: _insightsOnly,
+                      onSelected: (selected) =>
+                          setState(() => _insightsOnly = selected),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: visible.isEmpty
+                      ? _EmptyState(insightsOnly: _insightsOnly)
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(24),
+                          itemCount: visible.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 10),
+                          itemBuilder: (context, index) {
+                            return _NotificationTile(notification: visible[index]);
+                          },
+                        ),
+                ),
+              ],
             );
           },
         ),
@@ -230,6 +263,12 @@ _NotificationStyle _styleFor(NotificationType type) {
         color: AppColors.accent,
         background: AppColors.softCoral,
       );
+    case NotificationType.insight:
+      return _NotificationStyle(
+        icon: Icons.auto_awesome_rounded,
+        color: AppColors.primary,
+        background: AppColors.lightTeal,
+      );
     case NotificationType.general:
       return _NotificationStyle(
         icon: Icons.notifications_rounded,
@@ -260,7 +299,9 @@ String _relativeTime(DateTime createdAt, DateTime now) {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({this.insightsOnly = false});
+
+  final bool insightsOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -271,13 +312,15 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.notifications_none_rounded,
+              insightsOnly
+                  ? Icons.auto_awesome_outlined
+                  : Icons.notifications_none_rounded,
               size: 56,
               color: AppColors.textSecondary,
             ),
             const SizedBox(height: 16),
             Text(
-              "You're all caught up 🎉",
+              insightsOnly ? 'No insights yet' : "You're all caught up 🎉",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -285,7 +328,9 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Important reminders and financial updates will appear here.',
+              insightsOnly
+                  ? 'Meaningful insights about your spending and budgets will appear here.'
+                  : 'Important reminders and financial updates will appear here.',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,

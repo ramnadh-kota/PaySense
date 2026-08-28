@@ -71,6 +71,14 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ));
   }
 
+  Future<void> setInsightNotifications(bool enabled) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setInsightNotifications(enabled);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      insightNotifications: enabled,
+    ));
+  }
+
   /// Clears only financial records (transactions, wallets, budgets, goals,
   /// recurring transactions, bills, loans) and any scheduled reminders.
   /// Never touches the authenticated account, [UserProfile], or settings.

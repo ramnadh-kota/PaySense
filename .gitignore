@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Locally-built debug APK copy (see artifacts/PaySense-debug-latest.apk) —
+# a build output, never committed.
+/artifacts/

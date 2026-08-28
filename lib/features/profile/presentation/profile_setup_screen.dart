@@ -127,10 +127,15 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       updatedAt: now,
     );
 
+    // Consumer Monetization Foundation (PHASE 1/13): checked BEFORE saving
+    // so a user RESUMING onboarding (who already has a saved profile from
+    // an earlier session) is still routed into the rest of onboarding
+    // rather than being mistaken for a Settings > Edit Profile edit —
+    // `_isEditing` alone can't tell the two apart, since both have an
+    // existing profile at screen-open time.
+    final isFirstLaunch = await ref.read(isFirstLaunchProvider.future);
+
     await ref.read(userProfileProvider.notifier).saveProfile(profile);
-    if (!_isEditing) {
-      await ref.read(isFirstLaunchProvider.notifier).completeFirstLaunch();
-    }
 
     if (!mounted) {
       return;
@@ -138,7 +143,13 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
     setState(() => _isSaving = false);
 
-    if (_isEditing) {
+    if (isFirstLaunch) {
+      // Onboarding isn't complete yet — `completeFirstLaunch()` now fires
+      // at the true end of the sequence (AhaMomentScreen), not here.
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.onboardingGoals, (route) => false);
+    } else if (_isEditing) {
       Navigator.of(context).pop();
     } else {
       Navigator.of(

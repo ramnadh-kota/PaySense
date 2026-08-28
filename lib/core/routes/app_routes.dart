@@ -30,8 +30,27 @@ class AppRoutes {
   static const subscriptions = '/subscriptions';
   static const smsReview = '/sms-review';
   static const reports = '/reports';
+  static const financialReport = '/financial-report';
   static const financialPlanning = '/financial-planning';
   static const taxPlanner = '/tax-planner';
   static const affordability = '/affordability';
   static const financialHealthTrends = '/financial-health-trends';
+  static const financialTimeline = '/financial-timeline';
+  static const financialCompare = '/financial-compare';
+  static const csvImport = '/csv-import';
+  static const bankConnect = '/bank-connect';
+  static const connectedAccounts = '/connected-accounts';
+  static const featureSearch = '/feature-search';
+  static const recurringMoney = '/recurring-money';
+  static const dataExport = '/data-export';
+  static const financialAlerts = '/financial-alerts';
+  static const accountDeletion = '/account-deletion';
+
+  // Consumer Monetization Foundation
+  static const onboardingGoals = '/onboarding-goals';
+  static const onboardingIncomeSource = '/onboarding-income-source';
+  static const onboardingBuildPicture = '/onboarding-build-picture';
+  static const financialSnapshot = '/financial-snapshot';
+  static const ahaMoment = '/aha-moment';
+  static const paywall = '/paywall';
 }

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
+import 'package:paysense/shared/models/entitlement.dart';
+import 'package:paysense/shared/providers/entitlement_provider.dart';
 import 'package:paysense/shared/providers/financial_planning_provider.dart';
 import 'package:paysense/shared/providers/safe_to_spend_provider.dart';
 import 'package:paysense/shared/utils/affordability_calculator.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
+import 'package:paysense/shared/widgets/premium_discovery_banner.dart';
 
 final _money = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
@@ -137,6 +140,19 @@ class _AffordabilityScreenState extends ConsumerState<AffordabilityScreen> {
                   width: double.infinity,
                   child: OutlinedButton(onPressed: _tryAnotherAmount, child: const Text('Try another amount')),
                 ),
+              // CONSUMER MONETIZATION FOUNDATION (PHASE 7) — basic
+              // affordability analysis above is fully available for free;
+              // this is purely an additive discovery card for free users,
+              // never a gate on the analysis itself.
+              if (result != null && !canAccessEntitlement(ref, Entitlement.financialPlanning)) ...[
+                const SizedBox(height: 16),
+                const PremiumDiscoveryBanner(
+                  title: 'See the full impact on your financial plan',
+                  subtitle: 'Advanced affordability analysis is part of PaySense Plus.',
+                  ctaLabel: 'Plus',
+                  analyticsContext: 'affordability_advanced',
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

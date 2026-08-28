@@ -15,6 +15,9 @@ import 'package:paysense/core/routes/app_routes.dart';
 import 'package:paysense/shared/providers/financial_planning_provider.dart';
 import 'package:paysense/shared/utils/financial_planning_calculator.dart';
 import 'package:paysense/shared/widgets/app_card.dart';
+import 'package:paysense/shared/widgets/premium_discovery_banner.dart';
+import 'package:paysense/shared/models/entitlement.dart';
+import 'package:paysense/shared/providers/entitlement_provider.dart';
 import 'package:paysense/shared/providers/user_profile_provider.dart';
 
 /// PHASE 15 — the exact disclaimer every What-If result card must show.
@@ -169,137 +172,186 @@ class _AiScreenState extends ConsumerState<AiScreen> {
     final planning = ref.watch(financialPlanningProvider);
 
     return Scaffold(
+      // Default true — kept explicit since it's load-bearing here: with it,
+      // MediaQuery.viewInsets.bottom correctly excludes the keyboard from
+      // the body's available height, which is what lets the Expanded
+      // scrollable below shrink instead of overflowing.
+      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
+          // BUG FIX (keyboard overflow): everything except the input row
+          // used to sit in one non-scrollable Column alongside an
+          // Expanded conversation card. When the keyboard reduced the
+          // Column's available height, the fixed-size chrome above the
+          // conversation (greeting, Financial Planning card, Tax Planner
+          // card, quick-question chips) no longer fit and the Column
+          // overflowed at the bottom. The fix: ONE Expanded, scrollable
+          // ListView holds everything that can grow (header, cards,
+          // banner, chips, conversation) — it shrinks and scrolls
+          // instead of overflowing — while the input row is a fixed
+          // sibling OUTSIDE the Expanded, so it always stays visible
+          // directly above the keyboard.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Hello, $userName',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                "I'm your PaySense AI Coach.",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // PHASE 6: compact Financial Planning entry point, using the
-              // real calculated readiness score — never a duplicate of the
-              // full Financial Planning screen. Tapping asks the AI a
-              // canned question rather than navigating away, since the user
-              // is already on the AI screen.
-              _FinancialPlanningCard(
-                readinessScore: planning.readinessScore,
-                onAskAi: isSending
-                    ? null
-                    : () => _send('How can I improve my financial position?'),
-              ),
-
-              const SizedBox(height: 12),
-
-              // INDIA TAX PLANNER 1.0 — PHASE 13's second suggested entry
-              // point (alongside Financial Planning). Navigates to the full
-              // Tax Planner screen rather than asking a canned question,
-              // since entering income/deductions needs a form, not chat.
-              _TaxPlannerEntryCard(),
-
-              const SizedBox(height: 12),
-
-              // PHASE 15: for a brand-new account, don't pretend to give
-              // personalized advice — but general financial questions still
-              // work (the input below is never disabled).
-              if (!planning.hasSufficientData) ...[
-                _EmptyDataBanner(),
-                const SizedBox(height: 12),
-              ],
-
-              // Quick questions (PHASE 5) — compact, curated, real prompts.
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _quickQuestions.map((question) {
-                  return ActionChip(
-                    label: Text(question),
-                    onPressed: isSending ? null : () => _send(question),
-                    backgroundColor: AppColors.surface,
-                    labelStyle: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textPrimary),
-                  );
-                }).toList(),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Conversation area
               Expanded(
-                child: AppCard(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: chatState.when(
-                      skipLoadingOnReload: true,
-                      data: (messages) {
-                        if (messages.isEmpty && !isSending) {
-                          return Center(
-                            child: Text(
-                              'Ask me anything about your money.',
-                              style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(color: AppColors.textSecondary),
-                            ),
-                          );
-                        }
+                child: ListView(
+                  controller: _scrollController,
+                  children: [
+                    Text(
+                      'Hello, $userName',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "I'm your PaySense AI Coach.",
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
 
-                        final itemCount = messages.length + (isSending ? 1 : 0);
-                        return ListView.separated(
-                          controller: _scrollController,
-                          reverse: false,
-                          itemCount: itemCount,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 4),
-                          itemBuilder: (context, index) {
-                            if (index >= messages.length) {
-                              return _buildTypingIndicator();
+                    // PHASE 6: compact Financial Planning entry point, using
+                    // the real calculated readiness score — never a
+                    // duplicate of the full Financial Planning screen.
+                    // Tapping asks the AI a canned question rather than
+                    // navigating away, since the user is already on the AI
+                    // screen.
+                    _FinancialPlanningCard(
+                      readinessScore: planning.readinessScore,
+                      onAskAi: isSending
+                          ? null
+                          : () => _send('How can I improve my financial position?'),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // INDIA TAX PLANNER 1.0 — PHASE 13's second suggested
+                    // entry point (alongside Financial Planning). Navigates
+                    // to the full Tax Planner screen rather than asking a
+                    // canned question, since entering income/deductions
+                    // needs a form, not chat.
+                    _TaxPlannerEntryCard(),
+
+                    const SizedBox(height: 12),
+
+                    // CONSUMER MONETIZATION FOUNDATION (PHASE 7) — a small,
+                    // non-blocking discovery card for free users only. The
+                    // actual AI chat below is NEVER disabled or restricted
+                    // by this — it's purely additive.
+                    if (!canAccessEntitlement(ref, Entitlement.aiAssistant)) ...[
+                      const PremiumDiscoveryBanner(
+                        title: 'Ask PaySense anything about your finances.',
+                        subtitle: 'Unlimited AI conversations are part of PaySense Plus.',
+                        analyticsContext: 'ai_assistant',
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // PHASE 15: for a brand-new account, don't pretend to
+                    // give personalized advice — but general financial
+                    // questions still work (the input below is never
+                    // disabled).
+                    if (!planning.hasSufficientData) ...[
+                      _EmptyDataBanner(),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Quick questions (PHASE 5) — compact, curated, real
+                    // prompts. Part of the same scrollable as everything
+                    // else, so they're always reachable by scrolling even
+                    // with the keyboard open, never clipped behind it.
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _quickQuestions.map((question) {
+                        return ActionChip(
+                          label: Text(question),
+                          onPressed: isSending ? null : () => _send(question),
+                          backgroundColor: AppColors.surface,
+                          labelStyle: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textPrimary),
+                        );
+                      }).toList(),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Conversation area — sized to its content now (not
+                    // force-filled via Expanded), since it lives inside the
+                    // page-level scrollable above.
+                    AppCard(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: chatState.when(
+                          skipLoadingOnReload: true,
+                          data: (messages) {
+                            if (messages.isEmpty && !isSending) {
+                              return SizedBox(
+                                height: 140,
+                                child: Center(
+                                  child: Text(
+                                    'Ask me anything about your money.',
+                                    style: Theme.of(context).textTheme.bodyLarge
+                                        ?.copyWith(color: AppColors.textSecondary),
+                                  ),
+                                ),
+                              );
                             }
-                            final message = messages[index];
-                            return Align(
-                              alignment: message.isUser
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: _buildMessageBubble(message),
+
+                            return Column(
+                              children: [
+                                for (final message in messages) ...[
+                                  Align(
+                                    alignment: message.isUser
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    child: _buildMessageBubble(message),
+                                  ),
+                                  const SizedBox(height: 4),
+                                ],
+                                if (isSending)
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: _buildTypingIndicator(),
+                                  ),
+                              ],
                             );
                           },
-                        );
-                      },
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      // In practice unreachable (sendMessage always resolves
-                      // to AsyncData, even on failure — see ai_provider.dart)
-                      // but kept as a safe fallback per PHASE 13.
-                      error: (error, stack) => Center(
-                        child: Text(
-                          'Unable to reach your financial assistant right '
-                          'now. Your PaySense data is safe.',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppColors.textSecondary),
+                          loading: () => const SizedBox(
+                            height: 140,
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                          // In practice unreachable (sendMessage always
+                          // resolves to AsyncData, even on failure — see
+                          // ai_provider.dart) but kept as a safe fallback
+                          // per PHASE 13.
+                          error: (error, stack) => Center(
+                            child: Text(
+                              'Unable to reach your financial assistant right '
+                              'now. Your PaySense data is safe.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
 
               const SizedBox(height: 12),
 
-              // Input row
+              // Input row — a fixed-size sibling OUTSIDE the Expanded
+              // scrollable above, so it always stays visible directly
+              // above the keyboard, never overflowed or hidden behind it.
               Row(
                 children: [
                   Expanded(

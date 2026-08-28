@@ -128,6 +128,23 @@ class RecurringTransaction {
   DateTime get reminderDate =>
       nextDueDate.subtract(Duration(days: reminderDaysBefore));
 
+  /// [amount] normalized to a monthly-equivalent figure based on
+  /// [frequency], so totals across mixed-cadence recurring items (e.g. one
+  /// yearly plus several monthly) can be summed meaningfully.
+  double get monthlyEquivalentAmount {
+    switch (frequency) {
+      case 'Daily':
+        return amount * 30;
+      case 'Weekly':
+        return amount * (30 / 7);
+      case 'Yearly':
+        return amount / 12;
+      case 'Monthly':
+      default:
+        return amount;
+    }
+  }
+
   /// Computes the next occurrence date after [from] for the given
   /// [frequency]. Falls back to a monthly cadence for unrecognized values.
   static DateTime computeNextDueDate(DateTime from, String frequency) {

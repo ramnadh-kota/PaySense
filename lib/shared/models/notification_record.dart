@@ -11,6 +11,7 @@ enum NotificationType {
   financialHealth,
   smsTransaction,
   budget,
+  insight,
   general,
 }
 

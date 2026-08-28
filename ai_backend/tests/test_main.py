@@ -91,7 +91,10 @@ def test_missing_financial_context_is_rejected(client):
 
 @pytest.mark.parametrize(
     "forbidden_key",
-    ["password", "pin", "pinHash", "biometricToken", "apiKey", "authToken", "sessionSecret"],
+    [
+        "password", "pin", "pinHash", "biometricToken", "apiKey", "authToken", "sessionSecret",
+        "otp", "cvv", "cvc", "cardNumber", "accountNumber", "smsBody",
+    ],
 )
 def test_sensitive_fields_are_rejected(client, forbidden_key):
     context = dict(SAMPLE_CONTEXT)

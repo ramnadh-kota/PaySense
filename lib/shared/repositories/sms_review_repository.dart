@@ -44,4 +44,8 @@ class SmsReviewRepository {
   Future<void> delete(String id) async {
     await _box.delete(id);
   }
+
+  Future<void> clearAll() async {
+    await _box.clear();
+  }
 }
