@@ -12,6 +12,7 @@ import 'package:paysense/shared/models/transaction.dart';
 import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/models/pain_of_paying_result.dart';
 import 'package:paysense/shared/providers/account_aggregator_connections_provider.dart';
+import 'package:paysense/shared/providers/analytics_provider.dart' show AnalyticsSummary, analyticsSummaryProvider;
 import 'package:paysense/shared/providers/financial_safety_provider.dart';
 import 'package:paysense/shared/providers/safe_to_spend_provider.dart';
 import 'package:paysense/shared/services/analytics_service.dart';
@@ -46,6 +47,7 @@ import '../transactions/presentation/add_income_screen.dart';
 import '../wallet/presentation/add_edit_wallet_screen.dart';
 import 'widgets/cash_flow_card.dart';
 import 'widgets/financial_health_card.dart';
+import 'widgets/fun_funds_card.dart';
 import 'widgets/quick_action_button.dart';
 import 'widgets/safe_to_spend_card.dart';
 import 'widgets/subscriptions_card.dart';
@@ -94,7 +96,7 @@ class DashboardScreen extends ConsumerWidget {
       body: SafeArea(
         child: transactionsAsync.when(
           data: (transactions) {
-            final totals = _calculateTotals(transactions);
+            final totals = _totalsFromAnalytics(ref.watch(analyticsSummaryProvider));
             // BUG FIX: Total Assets/Total Liabilities/Net Worth previously
             // showed hardcoded strings that never reflected real data. This
             // reuses FinancialOverview — the SAME already-computed net-worth
@@ -328,7 +330,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            'Financial Summary',
+            "This Month's Summary",
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
@@ -361,6 +363,8 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           SafeToSpendCard(currencyFormatter: currencyFormatter),
+          const SizedBox(height: 12),
+          FunFundsCard(currencyFormatter: currencyFormatter),
           const SizedBox(height: 12),
           CashFlowCard(currencyFormatter: currencyFormatter),
           const SizedBox(height: 12),
@@ -1085,23 +1089,23 @@ class _DashboardTotals {
   final double balance;
 }
 
-_DashboardTotals _calculateTotals(List<Transaction> transactions) {
-  double totalIncome = 0;
-  double totalExpense = 0;
-
-  for (final transaction in transactions) {
-    final normalizedType = transaction.transactionType.toLowerCase();
-    if (normalizedType == 'income') {
-      totalIncome += transaction.amount;
-    } else if (normalizedType == 'expense') {
-      totalExpense += transaction.amount;
-    }
-  }
-
+/// AUDIT FIX — this used to sum ALL transactions ever recorded (no date
+/// filter) under an unlabeled "Financial Summary" heading, while every
+/// sibling widget on this same screen (Safe-to-Spend, Cash Flow) and every
+/// other feature that shows income/expense (Reports, Financial Health,
+/// Compare Periods) is current-month-scoped — for any account with
+/// prior-month history the two would silently disagree on what read as the
+/// same metric. Fixed by reusing [AnalyticsSummary] — the SAME
+/// current-month calculation [FinancialHealthCalculator] and the Loan
+/// Analytics card already consume — instead of a second, independently
+/// re-derived income/expense formula. See
+/// cross_feature_financial_consistency_test.dart for the regression proof
+/// this now agrees with Reports' "This month" figures.
+_DashboardTotals _totalsFromAnalytics(AnalyticsSummary analytics) {
   return _DashboardTotals(
-    totalIncome: totalIncome,
-    totalExpense: totalExpense,
-    balance: totalIncome - totalExpense,
+    totalIncome: analytics.currentMonthIncome,
+    totalExpense: analytics.currentMonthExpense,
+    balance: analytics.currentMonthIncome - analytics.currentMonthExpense,
   );
 }
 

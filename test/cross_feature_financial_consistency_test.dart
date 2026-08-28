@@ -1,37 +1,27 @@
 // FINANCIAL CALCULATION AUDIT — cross-feature consistency regression suite.
 //
-// PaySense has several independently-written summation loops that all
-// answer variants of "income/expense over some window": ReportsCalculator
-// (Reports screen), buildAnalyticsSummary (Dashboard/Financial Health/Loan
-// Analytics), and Dashboard's own top "Financial Summary" cards
-// (`_calculateTotals` in dashboard_screen.dart — private to that file, so
-// its formula is mirrored here as `_allTimeTotals` rather than imported).
-// This file has two jobs:
+// PaySense has several places that answer variants of "income/expense over
+// some window": ReportsCalculator (Reports screen) and buildAnalyticsSummary
+// (Dashboard/Financial Health/Loan Analytics). This file has two jobs:
 //
 //   1. Prove the ones that SHOULD agree (Reports "This month" vs
 //      buildAnalyticsSummary's current-month figures) actually do, given
 //      identical input — a regression guard against future silent drift
 //      between the two independent implementations.
 //
-//   2. DOCUMENT a real product-level inconsistency found during this audit:
-//      the Dashboard's "Financial Summary" Income/Expenses/Savings cards
-//      are UNSCOPED (all-time, since account creation), while every
-//      adjacent feature that shows income/expense (Reports "This month"
-//      default, Financial Health's "this month" insights, Compare Periods'
-//      "this month vs last month" default) is current-month-scoped. For an
-//      account with prior-month history, the Dashboard cards will show a
-//      LARGER number than Reports/Financial Health for what looks like the
-//      same metric, with no "All time" label distinguishing them. This is
-//      not a math bug — `_calculateTotals`'s all-time sum is internally
-//      correct — but it is a real, user-visible consistency question this
-//      audit was asked to surface, not silently resolve. Test 2 below
-//      locks in TODAY's actual behavior (so a future change is deliberate,
-//      not accidental) and documents the finding; it deliberately does NOT
-//      assert the two numbers are equal, because today they are not.
-//
-// See the accompanying audit report for the recommendation: either scope
-// the Dashboard cards to "This month" (aligning with its siblings) or add
-// an explicit "All time" label — a product decision, not made here.
+//   2. HISTORY: this audit originally found Dashboard's "Financial Summary"
+//      Income/Expenses/Savings cards were UNSCOPED (all-time, since account
+//      creation) via a private `_calculateTotals` loop, while every sibling
+//      feature (Reports "This month" default, Financial Health, Compare
+//      Periods) was current-month-scoped — a real, user-visible
+//      inconsistency for any account with prior-month history. FIXED: the
+//      Dashboard heading is now "This Month's Summary" and its totals are
+//      read directly from `AnalyticsSummary.currentMonthIncome/Expense`
+//      (`_totalsFromAnalytics` in dashboard_screen.dart) — the exact same
+//      value Group 1 below proves agrees with Reports, so Dashboard/Reports
+//      agreement is now guaranteed by construction, not just tested. Group
+//      2 proves the fix: no leakage from adjacent months in either
+//      direction.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paysense/shared/models/transaction.dart';
@@ -57,26 +47,6 @@ Transaction _tx({
     note: '',
     createdAt: createdAt,
   );
-}
-
-/// Mirrors `_calculateTotals` in dashboard_screen.dart EXACTLY (same loop,
-/// same type-matching logic, no date filter) — that function is private to
-/// its file and can't be imported, so this is a documented, literal copy
-/// used only to prove what the Dashboard actually displays.
-({double income, double expense, double balance}) _allTimeTotals(
-  List<Transaction> transactions,
-) {
-  double totalIncome = 0;
-  double totalExpense = 0;
-  for (final t in transactions) {
-    final normalized = t.transactionType.toLowerCase();
-    if (normalized == 'income') {
-      totalIncome += t.amount;
-    } else if (normalized == 'expense') {
-      totalExpense += t.amount;
-    }
-  }
-  return (income: totalIncome, expense: totalExpense, balance: totalIncome - totalExpense);
 }
 
 void main() {
@@ -140,16 +110,76 @@ void main() {
     });
   });
 
-  group('2. DOCUMENTED FINDING: Dashboard "Financial Summary" cards are all-time, not this-month', () {
-    test('with cross-month data, Dashboard totals ≠ Reports "This month" totals', () {
+  group('2. Dashboard "This Month\'s Summary" scope fix', () {
+    // Dashboard now computes its totals as
+    // `AnalyticsSummary.currentMonthIncome/currentMonthExpense` — proven
+    // directly here rather than importing dashboard_screen.dart's private
+    // `_totalsFromAnalytics` (a one-line pass-through with nothing of its
+    // own left to test).
+    test('1. current-month income is correct', () {
+      final transactions = [
+        _tx(id: 't1', amount: 50000, type: 'income', createdAt: startOfThisMonth),
+        _tx(id: 't2', amount: 5000, type: 'income', createdAt: DateTime(2026, 8, 15)),
+      ];
+      expect(buildAnalyticsSummary(transactions, now).currentMonthIncome, 55000);
+    });
+
+    test('2. current-month expense is correct', () {
+      final transactions = [
+        _tx(id: 't1', amount: 12000, type: 'expense', createdAt: DateTime(2026, 8, 5)),
+        _tx(id: 't2', amount: 8000, type: 'expense', createdAt: DateTime(2026, 8, 20)),
+      ];
+      expect(buildAnalyticsSummary(transactions, now).currentMonthExpense, 20000);
+    });
+
+    test('3. current-month savings (income - expense) is correct', () {
+      final transactions = [
+        _tx(id: 't1', amount: 50000, type: 'income', createdAt: startOfThisMonth),
+        _tx(id: 't2', amount: 20000, type: 'expense', createdAt: DateTime(2026, 8, 5)),
+      ];
+      final analytics = buildAnalyticsSummary(transactions, now);
+      final dashboardSavings = analytics.currentMonthIncome - analytics.currentMonthExpense;
+      expect(dashboardSavings, 30000);
+    });
+
+    test('4. previous-month transactions do not leak into current-month totals', () {
+      final transactions = [
+        _tx(id: 't1', amount: 50000, type: 'income', createdAt: startOfThisMonth),
+        _tx(id: 't2', amount: 20000, type: 'expense', createdAt: DateTime(2026, 8, 5)),
+        // Large prior-month figures that would inflate the total if the
+        // date filter were missing or off-by-one at the month boundary.
+        _tx(id: 't3', amount: 99999, type: 'income', createdAt: lastMonth),
+        _tx(id: 't4', amount: 88888, type: 'expense', createdAt: DateTime(2026, 7, 31, 23, 59, 59)),
+      ];
+      final analytics = buildAnalyticsSummary(transactions, now);
+      expect(analytics.currentMonthIncome, 50000);
+      expect(analytics.currentMonthExpense, 20000);
+    });
+
+    test('5. future transactions do not leak into current-month totals', () {
+      final transactions = [
+        _tx(id: 't1', amount: 50000, type: 'income', createdAt: startOfThisMonth),
+        _tx(id: 't2', amount: 20000, type: 'expense', createdAt: DateTime(2026, 8, 5)),
+        // A next-month transaction (e.g. a post-dated/scheduled entry) —
+        // must not be counted in the current calendar month either.
+        _tx(id: 't3', amount: 77777, type: 'income', createdAt: DateTime(2026, 9, 1)),
+        _tx(id: 't4', amount: 66666, type: 'expense', createdAt: DateTime(2026, 9, 1)),
+      ];
+      final analytics = buildAnalyticsSummary(transactions, now);
+      expect(analytics.currentMonthIncome, 50000);
+      expect(analytics.currentMonthExpense, 20000);
+    });
+
+    test('6. Dashboard and Reports agree for the same period, even with cross-month noise', () {
       final transactions = [
         _tx(id: 't1', amount: 50000, type: 'income', createdAt: startOfThisMonth),
         _tx(id: 't2', amount: 20000, type: 'expense', createdAt: DateTime(2026, 8, 5)),
         _tx(id: 't3', amount: 99999, type: 'income', createdAt: lastMonth),
         _tx(id: 't4', amount: 88888, type: 'expense', createdAt: lastMonth),
+        _tx(id: 't5', amount: 77777, type: 'income', createdAt: DateTime(2026, 9, 1)),
       ];
 
-      final dashboardTotals = _allTimeTotals(transactions);
+      final analytics = buildAnalyticsSummary(transactions, now);
       final reportsThisMonth = ReportsCalculator.calculate(
         transactions: transactions,
         wallets: const <Wallet>[],
@@ -157,42 +187,14 @@ void main() {
         now: now,
       );
 
-      // This-month-only figures (what Reports/Financial Health show).
-      expect(reportsThisMonth.totalIncome, 50000);
-      expect(reportsThisMonth.totalExpense, 20000);
-
-      // All-time figures (what the Dashboard's "Income"/"Expenses" cards
-      // actually show today) — includes July's transactions too.
-      expect(dashboardTotals.income, 50000 + 99999);
-      expect(dashboardTotals.expense, 20000 + 88888);
-
-      // The documented finding: these genuinely disagree today. If this
-      // assertion ever starts failing because someone scoped the Dashboard
-      // cards to "this month", that's a deliberate fix, not a break —
-      // update this test's expectations (and its header comment) to match.
-      expect(dashboardTotals.income, isNot(equals(reportsThisMonth.totalIncome)));
-      expect(dashboardTotals.expense, isNot(equals(reportsThisMonth.totalExpense)));
-    });
-
-    test('with only this-month data, the two happen to agree (masking the scope difference)', () {
-      final transactions = [
-        _tx(id: 't1', amount: 50000, type: 'income', createdAt: startOfThisMonth),
-        _tx(id: 't2', amount: 20000, type: 'expense', createdAt: DateTime(2026, 8, 5)),
-      ];
-
-      final dashboardTotals = _allTimeTotals(transactions);
-      final reportsThisMonth = ReportsCalculator.calculate(
-        transactions: transactions,
-        wallets: const <Wallet>[],
-        period: ReportPeriod.thisMonth,
-        now: now,
-      );
-
-      // A brand-new account (or one only ever tested within a single
-      // month) never notices the scope difference — exactly why it went
-      // unflagged until this audit deliberately tested cross-month data.
-      expect(dashboardTotals.income, reportsThisMonth.totalIncome);
-      expect(dashboardTotals.expense, reportsThisMonth.totalExpense);
+      // Dashboard's totals ARE these AnalyticsSummary fields (see
+      // _totalsFromAnalytics in dashboard_screen.dart) — this is the same
+      // agreement Group 1 proves, restated here with cross-month noise
+      // present specifically to close the gap this audit originally found.
+      expect(analytics.currentMonthIncome, reportsThisMonth.totalIncome);
+      expect(analytics.currentMonthExpense, reportsThisMonth.totalExpense);
+      expect(analytics.currentMonthIncome, 50000);
+      expect(analytics.currentMonthExpense, 20000);
     });
   });
 
@@ -208,20 +210,20 @@ void main() {
         ),
       );
 
-      final dashboardTotals = _allTimeTotals(transactions);
-      final reportsAllMonth = ReportsCalculator.calculate(
+      final analytics = buildAnalyticsSummary(transactions, now);
+      final reportsThisMonth = ReportsCalculator.calculate(
         transactions: transactions,
         wallets: const <Wallet>[],
         period: ReportPeriod.thisMonth,
         now: now,
       );
 
-      // 37 * 33.33 = 1233.21 exactly in decimal; verifies both loops
-      // accumulate identically (no summation-order-dependent float drift)
-      // and that the double representation round-trips through
-      // toStringAsFixed cleanly at the currency formatter's precision.
-      expect(dashboardTotals.expense, closeTo(1233.21, 1e-9));
-      expect(reportsAllMonth.totalExpense, dashboardTotals.expense);
+      // 37 * 33.33 = 1233.21 exactly in decimal; verifies both
+      // implementations accumulate identically (no summation-order-
+      // dependent float drift) and that the double representation
+      // round-trips through toStringAsFixed cleanly at display precision.
+      expect(analytics.currentMonthExpense, closeTo(1233.21, 1e-9));
+      expect(reportsThisMonth.totalExpense, analytics.currentMonthExpense);
     });
 
     test('CurrencyFormatter rounds to whole rupees consistently, never truncates silently', () {

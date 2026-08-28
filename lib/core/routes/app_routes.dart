@@ -45,6 +45,7 @@ class AppRoutes {
   static const dataExport = '/data-export';
   static const financialAlerts = '/financial-alerts';
   static const accountDeletion = '/account-deletion';
+  static const funFunds = '/fun-funds';
 
   // Consumer Monetization Foundation
   static const onboardingGoals = '/onboarding-goals';

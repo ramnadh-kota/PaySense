@@ -7,6 +7,9 @@ import '../repositories/bill_repository.dart';
 import '../repositories/budget_repository.dart';
 import '../repositories/entitlement_repository.dart';
 import '../repositories/financial_safety_dismissed_repository.dart';
+import '../repositories/fun_funds_expense_repository.dart';
+import '../repositories/fun_funds_group_repository.dart';
+import '../repositories/fun_funds_settlement_repository.dart';
 import '../repositories/goal_repository.dart';
 import '../repositories/loan_repository.dart';
 import '../repositories/notification_repository.dart';
@@ -58,6 +61,12 @@ class AccountDeletionService {
     }
 
     await FinancialSafetyDismissedRepository.instance.clearAll();
+    // Order matters: expenses/settlements reference a groupId, so clear
+    // them before the groups themselves (mirrors deleteForGroup's own
+    // child-before-parent ordering, just for every group at once).
+    await FunFundsExpenseRepository.instance.clearAll();
+    await FunFundsSettlementRepository.instance.clearAll();
+    await FunFundsGroupRepository.instance.clearAll();
     await UserProfileRepository.instance.clearProfile();
 
     // Reset the local mock entitlement rather than deleting the box

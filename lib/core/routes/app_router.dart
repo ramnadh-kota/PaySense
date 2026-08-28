@@ -9,6 +9,7 @@ import '../../features/budget/presentation/screens/budget_screen.dart';
 import '../../features/cash_flow/presentation/cash_flow_screen.dart';
 import '../../features/financial_health/presentation/financial_health_screen.dart';
 import '../../features/financial_planning/presentation/financial_planning_screen.dart';
+import '../../features/fun_funds/presentation/fun_funds_screen.dart';
 import '../../features/goals/presentation/screens/goals_screen.dart';
 import '../../features/loans/presentation/screens/loans_screen.dart';
 import '../../features/monthly_review/presentation/monthly_review_screen.dart';
@@ -122,6 +123,8 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const MonthlyReviewScreen());
       case AppRoutes.safeToSpend:
         return MaterialPageRoute(builder: (_) => const SafeToSpendScreen());
+      case AppRoutes.funFunds:
+        return MaterialPageRoute(builder: (_) => const FunFundsScreen());
       case AppRoutes.cashFlow:
         return MaterialPageRoute(builder: (_) => const CashFlowScreen());
       case AppRoutes.subscriptions:

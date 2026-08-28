@@ -65,6 +65,7 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
               const SizedBox(height: 8),
               const _DeletionItem(text: 'All transactions, wallets, and account balances'),
               const _DeletionItem(text: 'Goals, budgets, loans, and recurring payments'),
+              const _DeletionItem(text: 'Fun Funds groups, shared expenses, and settlement records'),
               const _DeletionItem(text: 'Connected bank account metadata'),
               const _DeletionItem(text: 'Search history and notification history'),
               const _DeletionItem(text: 'SMS-derived transaction review data and your app lock PIN'),
