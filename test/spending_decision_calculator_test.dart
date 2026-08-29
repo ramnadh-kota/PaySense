@@ -1,11 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paysense/shared/models/budget.dart';
+import 'package:paysense/shared/models/decision_memory_record.dart';
 import 'package:paysense/shared/models/goal.dart';
 import 'package:paysense/shared/models/loan.dart';
 import 'package:paysense/shared/models/wallet.dart';
 import 'package:paysense/shared/providers/analytics_provider.dart';
 import 'package:paysense/shared/utils/affordability_calculator.dart';
 import 'package:paysense/shared/utils/allowance_calculator.dart';
+import 'package:paysense/shared/utils/decision_memory_engine.dart';
 import 'package:paysense/shared/utils/financial_planning_calculator.dart';
 import 'package:paysense/shared/utils/safe_to_spend_calculator.dart';
 import 'package:paysense/shared/utils/spending_decision_calculator.dart';
@@ -285,6 +287,197 @@ void main() {
       expect(result.impact.emiPercentage, closeTo(25.0, 0.1));
       expect(result.impact.savingsGoalPercentage, closeTo(25.0, 0.1));
       expect(result.painOfPaying.signals, isNotEmpty);
+    });
+
+    test('7. No decision history produces null memoryInsight', () {
+      final safe = _safeToSpend(balance: 50000);
+      final plan = _planning(balance: 50000, emi: 0, income: 80000);
+
+      final result = SpendingDecisionCalculator.evaluate(
+        SpendingDecisionInput(
+          amount: 500,
+          categoryId: 'dining',
+          safeToSpend: safe,
+          planning: plan,
+          decisionHistory: const [],
+          now: _now,
+        ),
+      );
+
+      expect(result.memoryInsight, isNull);
+      expect(result.recommendationTier, SpendingRecommendationTier.spend);
+      expect(result.isComfortable, isTrue);
+    });
+
+    test('8. Insufficient decision history (< 2) produces null memoryInsight', () {
+      final safe = _safeToSpend(balance: 50000);
+      final plan = _planning(balance: 50000, emi: 0, income: 80000);
+
+      final singleRecord = DecisionMemoryRecord(
+        id: 'dm-1',
+        timestamp: _now.subtract(const Duration(days: 2)),
+        categoryId: 'dining',
+        amount: 500,
+        recommendationTier: SpendingRecommendationTier.spend,
+        userAction: DecisionUserAction.proceeded,
+        verdictLine: 'OK',
+      );
+
+      final result = SpendingDecisionCalculator.evaluate(
+        SpendingDecisionInput(
+          amount: 500,
+          categoryId: 'dining',
+          safeToSpend: safe,
+          planning: plan,
+          decisionHistory: [singleRecord],
+          now: _now,
+        ),
+      );
+
+      expect(result.memoryInsight, isNull);
+      expect(result.recommendationTier, SpendingRecommendationTier.spend);
+    });
+
+    test('9. Relevant proceeded history produces frequentlyProceeded insight without altering recommendation', () {
+      final safe = _safeToSpend(balance: 50000);
+      final plan = _planning(balance: 50000, emi: 0, income: 80000);
+
+      final history = [
+        DecisionMemoryRecord(
+          id: 'dm-1',
+          timestamp: _now.subtract(const Duration(days: 3)),
+          categoryId: 'dining',
+          amount: 500,
+          recommendationTier: SpendingRecommendationTier.spend,
+          userAction: DecisionUserAction.proceeded,
+          verdictLine: 'OK',
+        ),
+        DecisionMemoryRecord(
+          id: 'dm-2',
+          timestamp: _now.subtract(const Duration(days: 1)),
+          categoryId: 'dining',
+          amount: 550,
+          recommendationTier: SpendingRecommendationTier.spend,
+          userAction: DecisionUserAction.proceeded,
+          verdictLine: 'OK',
+        ),
+      ];
+
+      final result = SpendingDecisionCalculator.evaluate(
+        SpendingDecisionInput(
+          amount: 500,
+          categoryId: 'dining',
+          safeToSpend: safe,
+          planning: plan,
+          decisionHistory: history,
+          now: _now,
+        ),
+      );
+
+      expect(result.memoryInsight, isNotNull);
+      expect(result.memoryInsight!.type, DecisionMemoryPatternType.frequentlyProceeded);
+      expect(result.memoryInsight!.similarDecisionCount, 2);
+      expect(result.memoryInsight!.proceededCount, 2);
+      expect(result.memoryInsight!.cancelledCount, 0);
+      // Core financial recommendation is still authoritative and unchanged!
+      expect(result.recommendationTier, SpendingRecommendationTier.spend);
+      expect(result.isComfortable, isTrue);
+    });
+
+    test('10. Relevant cancelled/waited history produces frequentlyWaited insight without altering recommendation', () {
+      final safe = _safeToSpend(balance: 50000);
+      final plan = _planning(balance: 50000, emi: 0, income: 80000);
+      final budgets = [
+        _budget(categoryId: 'dining', categoryName: 'Dining', allocated: 10000, spent: 8500),
+      ];
+
+      final history = [
+        DecisionMemoryRecord(
+          id: 'dm-1',
+          timestamp: _now.subtract(const Duration(days: 5)),
+          categoryId: 'dining',
+          amount: 500,
+          recommendationTier: SpendingRecommendationTier.thinkAgain,
+          userAction: DecisionUserAction.cancelled,
+          verdictLine: 'Approaching limit',
+        ),
+        DecisionMemoryRecord(
+          id: 'dm-2',
+          timestamp: _now.subtract(const Duration(days: 2)),
+          categoryId: 'dining',
+          amount: 600,
+          recommendationTier: SpendingRecommendationTier.thinkAgain,
+          userAction: DecisionUserAction.cancelled,
+          verdictLine: 'Approaching limit',
+        ),
+      ];
+
+      final result = SpendingDecisionCalculator.evaluate(
+        SpendingDecisionInput(
+          amount: 500,
+          categoryId: 'dining',
+          safeToSpend: safe,
+          planning: plan,
+          budgets: budgets,
+          decisionHistory: history,
+          now: _now,
+        ),
+      );
+
+      expect(result.memoryInsight, isNotNull);
+      expect(result.memoryInsight!.type, DecisionMemoryPatternType.frequentlyWaited);
+      expect(result.memoryInsight!.similarDecisionCount, 2);
+      expect(result.memoryInsight!.cancelledCount, 2);
+      expect(result.memoryInsight!.proceededCount, 0);
+      // Core financial recommendation is still thinkAgain based on budget limit approaching!
+      expect(result.recommendationTier, SpendingRecommendationTier.thinkAgain);
+      expect(result.verdictLine, contains('Approaching'));
+    });
+
+    test('11. Mixed history produces mixedHistory insight without changing avoid recommendation', () {
+      final safe = _safeToSpend(balance: 2000);
+      final plan = _planning(balance: 2000, emi: 0, income: 50000);
+
+      final history = [
+        DecisionMemoryRecord(
+          id: 'dm-1',
+          timestamp: _now.subtract(const Duration(days: 4)),
+          categoryId: 'tech',
+          amount: 10000,
+          recommendationTier: SpendingRecommendationTier.avoid,
+          userAction: DecisionUserAction.proceeded,
+          verdictLine: 'Avoid',
+        ),
+        DecisionMemoryRecord(
+          id: 'dm-2',
+          timestamp: _now.subtract(const Duration(days: 2)),
+          categoryId: 'tech',
+          amount: 9500,
+          recommendationTier: SpendingRecommendationTier.avoid,
+          userAction: DecisionUserAction.cancelled,
+          verdictLine: 'Avoid',
+        ),
+      ];
+
+      final result = SpendingDecisionCalculator.evaluate(
+        SpendingDecisionInput(
+          amount: 10000,
+          categoryId: 'tech',
+          safeToSpend: safe,
+          planning: plan,
+          decisionHistory: history,
+          now: _now,
+        ),
+      );
+
+      expect(result.memoryInsight, isNotNull);
+      expect(result.memoryInsight!.type, DecisionMemoryPatternType.mixedHistory);
+      expect(result.memoryInsight!.similarDecisionCount, 2);
+      expect(result.memoryInsight!.proceededCount, 1);
+      expect(result.memoryInsight!.cancelledCount, 1);
+      // Core financial recommendation remains avoid due to wallet balance!
+      expect(result.recommendationTier, SpendingRecommendationTier.avoid);
+      expect(result.isCautionary, isTrue);
     });
   });
 }

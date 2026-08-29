@@ -1,18 +1,20 @@
 import 'package:flutter/foundation.dart';
 
 import '../models/budget.dart';
+import '../models/decision_memory_record.dart';
 import '../models/goal.dart';
 import '../models/pain_of_paying_result.dart';
 import '../models/transaction.dart';
 import 'affordability_calculator.dart';
 import 'allowance_calculator.dart';
+import 'decision_memory_engine.dart';
 import 'financial_planning_calculator.dart';
 import 'pain_of_paying_engine.dart';
 import 'purchase_impact_calculator.dart';
 import 'safe_to_spend_calculator.dart';
 import 'spending_limit_calculator.dart';
 
-/// Phase 6C — Spending Decision Integration
+/// Phase 6C/6E — Spending Decision Integration
 ///
 /// Connects existing calculators into the PaySense purchase-decision flow
 /// without duplicating or rewriting any financial formulas.
@@ -29,6 +31,7 @@ class SpendingDecisionInput {
     this.budgets = const [],
     this.goals = const [],
     this.transactions = const [],
+    this.decisionHistory = const [],
     required this.now,
   });
 
@@ -40,6 +43,7 @@ class SpendingDecisionInput {
   final List<Budget> budgets;
   final List<Goal> goals;
   final List<Transaction> transactions;
+  final List<DecisionMemoryRecord> decisionHistory;
   final DateTime now;
 }
 
@@ -54,6 +58,7 @@ class SpendingDecisionResult {
     required this.affordability,
     required this.impact,
     required this.painOfPaying,
+    this.memoryInsight,
     required this.verdictLine,
     required this.guidanceLine,
   });
@@ -78,6 +83,9 @@ class SpendingDecisionResult {
 
   /// Behavioral pain-of-paying classification.
   final PainOfPayingResult painOfPaying;
+
+  /// Optional decision memory insight summarizing historical choices.
+  final DecisionMemoryInsight? memoryInsight;
 
   /// Concise verdict line summarizing the decision status.
   final String verdictLine;
@@ -198,7 +206,21 @@ class SpendingDecisionCalculator {
       safeToSpend: input.safeToSpend,
     );
 
-    // 5. Unified recommendation synthesis
+    // 5. Decision memory context (additive only)
+    DecisionMemoryInsight? memoryInsight;
+    if (input.decisionHistory.isNotEmpty) {
+      final insight = DecisionMemoryEngine.analyze(
+        amount: amount,
+        categoryId: input.categoryId,
+        history: input.decisionHistory,
+        now: now,
+      );
+      if (insight.hasSufficientHistory) {
+        memoryInsight = insight;
+      }
+    }
+
+    // 6. Unified recommendation synthesis
     final verdict = _synthesizeVerdict(
       affordability: affordability,
       categoryLimit: categoryLimit,
@@ -221,6 +243,7 @@ class SpendingDecisionCalculator {
       affordability: affordability,
       impact: impact,
       painOfPaying: painOfPaying,
+      memoryInsight: memoryInsight,
       verdictLine: verdict,
       guidanceLine: guidance,
     );
