@@ -37,6 +37,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String? _selectedCategory;
   String? _selectedWalletId;
 
+  /// PAIN-OF-PAYING AUDIT — "Save Expense" had no re-entrancy guard: a
+  /// rapid double-tap could fire `_handleSave` twice before the first
+  /// call's `await showDialog` (Decision Coach) even painted, stacking two
+  /// dialogs and risking two saved transactions if both got confirmed.
+  /// Guards the entire async save, not just the repository write, so a
+  /// double-tap can never open a second Decision Coach dialog either.
+  bool _isSaving = false;
+
   final List<String> _categories = const <String>[
     'Groceries',
     'Dining',
@@ -53,6 +61,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _handleSave(List<Wallet> wallets) async {
+    // See _isSaving's doc comment — must be the very first thing checked,
+    // before even validation, so a double-tap can never start a second
+    // concurrent save (and therefore never open a second Decision Coach
+    // dialog or create a second transaction).
+    if (_isSaving) return;
+
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
       ScaffoldMessenger.of(
@@ -77,98 +91,106 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return;
     }
 
-    // BUG FIX (stale Think Before You Pay): these three insights used to be
-    // hardcoded literals (emiPercentage: 18, savingsGoalPercentage: 3, a
-    // fixed "two days of groceries" string) that never reflected the
-    // amount actually entered. They're now computed fresh, from the SAME
-    // `amount` just parsed above, every time this dialog is about to open
-    // — a read-only calculation that never touches a repository.
-    final planning = ref.read(financialPlanningProvider);
-    final goals = ref.read(goalsProvider).value ?? const <Goal>[];
-    final transactions = ref.read(transactionsProvider).value ?? const <Transaction>[];
-    final impact = PurchaseImpactCalculator.calculate(
-      amount: amount,
-      monthlyEmiBurden: planning.debt.monthlyEmiBurden,
-      goals: goals,
-      transactions: transactions,
-      category: _selectedCategory,
-      now: DateTime.now(),
-    );
+    setState(() => _isSaving = true);
 
-    if (!mounted) {
-      return;
+    try {
+      // BUG FIX (stale Think Before You Pay): these three insights used to
+      // be hardcoded literals (emiPercentage: 18, savingsGoalPercentage: 3,
+      // a fixed "two days of groceries" string) that never reflected the
+      // amount actually entered. They're now computed fresh, from the SAME
+      // `amount` just parsed above, every time this dialog is about to
+      // open — a read-only calculation that never touches a repository.
+      final planning = ref.read(financialPlanningProvider);
+      final goals = ref.read(goalsProvider).value ?? const <Goal>[];
+      final transactions = ref.read(transactionsProvider).value ?? const <Transaction>[];
+      final impact = PurchaseImpactCalculator.calculate(
+        amount: amount,
+        monthlyEmiBurden: planning.debt.monthlyEmiBurden,
+        goals: goals,
+        transactions: transactions,
+        category: _selectedCategory,
+        now: DateTime.now(),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return DecisionCoachDialog(
+            amount: impact.amount,
+            emiPercentage: impact.emiPercentage,
+            savingsGoalPercentage: impact.savingsGoalPercentage,
+            comparisonMessage: impact.perspectiveMessage,
+          );
+        },
+      );
+
+      if (confirmed != true) {
+        return;
+      }
+
+      final transaction = Transaction(
+        id: const Uuid().v4(),
+        title: _selectedCategory ?? 'Expense',
+        amount: amount,
+        categoryId: _selectedCategory ?? 'uncategorized',
+        // The real Wallet.id, never a display label — see
+        // wallet_account_resolver.dart for why this matters.
+        accountId: walletId,
+        transactionType: 'expense',
+        paymentMethod: 'card',
+        note: _noteController.text.trim(),
+        createdAt: DateTime.now(),
+      );
+
+      await TransactionRepository.instance.add(transaction);
+      await WalletRepository.instance.decreaseBalance(walletId, amount);
+      await ref.read(walletsProvider.notifier).reload();
+      await ref.read(transactionsProvider.notifier).reload();
+
+      if (!mounted) {
+        return;
+      }
+
+      // PAIN-OF-PAYING ENGINE: a lighter-touch, non-blocking follow-up to
+      // the "Think Before You Pay" dialog above — awareness after the
+      // fact, never a second confirm/cancel gate. Only shown when there's
+      // genuinely something to say (level != low), so a routine small
+      // purchase never interrupts the flow.
+      final budgets = ref.read(budgetsProvider).value ?? const <Budget>[];
+      final safeToSpend = ref.read(safeToSpendProvider);
+      final painOfPaying = PainOfPayingEngine.evaluate(
+        amount: amount,
+        categoryId: transaction.categoryId,
+        transactions: ref.read(transactionsProvider).value ?? const <Transaction>[],
+        budgets: budgets,
+        goals: goals,
+        now: DateTime.now(),
+        monthlyEmiBurden: planning.debt.monthlyEmiBurden,
+        safeToSpend: safeToSpend,
+        excludeTransactionId: transaction.id,
+      );
+
+      if (!mounted) {
+        return;
+      }
+      if (painOfPaying.level != PainOfPayingLevel.low) {
+        await showPainOfPayingSheet(context, painOfPaying);
+      }
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).pop();
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return DecisionCoachDialog(
-          amount: impact.amount,
-          emiPercentage: impact.emiPercentage,
-          savingsGoalPercentage: impact.savingsGoalPercentage,
-          comparisonMessage: impact.perspectiveMessage,
-        );
-      },
-    );
-
-    if (confirmed != true) {
-      return;
-    }
-
-    final transaction = Transaction(
-      id: const Uuid().v4(),
-      title: _selectedCategory ?? 'Expense',
-      amount: amount,
-      categoryId: _selectedCategory ?? 'uncategorized',
-      // The real Wallet.id, never a display label — see
-      // wallet_account_resolver.dart for why this matters.
-      accountId: walletId,
-      transactionType: 'expense',
-      paymentMethod: 'card',
-      note: _noteController.text.trim(),
-      createdAt: DateTime.now(),
-    );
-
-    await TransactionRepository.instance.add(transaction);
-    await WalletRepository.instance.decreaseBalance(walletId, amount);
-    await ref.read(walletsProvider.notifier).reload();
-    await ref.read(transactionsProvider.notifier).reload();
-
-    if (!mounted) {
-      return;
-    }
-
-    // PAIN-OF-PAYING ENGINE: a lighter-touch, non-blocking follow-up to
-    // the "Think Before You Pay" dialog above — awareness after the fact,
-    // never a second confirm/cancel gate. Only shown when there's
-    // genuinely something to say (level != low), so a routine small
-    // purchase never interrupts the flow.
-    final budgets = ref.read(budgetsProvider).value ?? const <Budget>[];
-    final safeToSpend = ref.read(safeToSpendProvider);
-    final painOfPaying = PainOfPayingEngine.evaluate(
-      amount: amount,
-      categoryId: transaction.categoryId,
-      transactions: ref.read(transactionsProvider).value ?? const <Transaction>[],
-      budgets: budgets,
-      goals: goals,
-      now: DateTime.now(),
-      monthlyEmiBurden: planning.debt.monthlyEmiBurden,
-      safeToSpend: safeToSpend,
-      excludeTransactionId: transaction.id,
-    );
-
-    if (!mounted) {
-      return;
-    }
-    if (painOfPaying.level != PainOfPayingLevel.low) {
-      await showPainOfPayingSheet(context, painOfPaying);
-    }
-
-    if (!mounted) {
-      return;
-    }
-    Navigator.of(context).pop();
   }
 
   @override
@@ -303,7 +325,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () => _handleSave(wallets),
+                  onPressed: _isSaving ? null : () => _handleSave(wallets),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
@@ -312,7 +334,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text('Save Expense'),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Save Expense'),
                 ),
               ),
             ],

@@ -241,7 +241,12 @@ void main() {
       await tester.enterText(find.byType(TextField).first, '500');
       await _selectWallet(tester, wallet.id);
       await tester.tap(find.text('Save Expense'));
-      await tester.pumpAndSettle();
+      // PAIN-OF-PAYING AUDIT: "Save Expense" now shows an indeterminate
+      // spinner while awaiting this dialog (a new re-entrancy guard —
+      // see add_expense_screen.dart's `_isSaving`), which schedules
+      // frames forever, so pumpAndSettle can no longer be used here.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Spend Anyway'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
