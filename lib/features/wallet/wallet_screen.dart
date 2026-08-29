@@ -126,11 +126,34 @@ class WalletScreen extends ConsumerWidget {
                   if (wallets.isEmpty) {
                     return AppCard(
                       padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No wallets yet.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.account_balance_wallet_outlined, size: 48, color: AppColors.textSecondary),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No Wallets Configured',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Add your bank accounts, cash, or digital wallets to organize transactions and track net worth.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const AddEditWalletScreen()),
+                            ),
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Add Your First Wallet'),
+                          ),
+                        ],
                       ),
                     );
                   }

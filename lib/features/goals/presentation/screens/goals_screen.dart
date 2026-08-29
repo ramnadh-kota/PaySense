@@ -84,11 +84,32 @@ class GoalsScreen extends ConsumerWidget {
                   if (goals.isEmpty)
                     AppCard(
                       padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No goals yet. Create a savings goal to start tracking progress.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.savings_outlined, size: 48, color: AppColors.textSecondary),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No Savings Goals Yet',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Goals give your money purpose and power Decision Coach purchase evaluations.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => _showGoalForm(context, ref),
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Set Your First Goal'),
+                          ),
+                        ],
                       ),
                     )
                   else

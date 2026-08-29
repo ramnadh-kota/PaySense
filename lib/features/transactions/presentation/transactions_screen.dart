@@ -313,8 +313,8 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               hasFilters
-                  ? 'Try changing your filters or search.'
-                  : 'Your transactions will show up here.',
+                  ? 'No transactions matched your current filters or search terms. Try clearing or adjusting your search criteria.'
+                  : 'No transactions recorded yet. Log an income, add an expense, or turn on SMS auto-detection in Settings to start tracking your cash flow.',
               textAlign: TextAlign.center,
               style: Theme.of(
                 context,
