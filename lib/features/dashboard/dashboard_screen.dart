@@ -46,6 +46,7 @@ import '../transactions/presentation/add_expense_screen.dart';
 import '../transactions/presentation/add_income_screen.dart';
 import '../wallet/presentation/add_edit_wallet_screen.dart';
 import 'widgets/daily_check_in_card.dart';
+import 'widgets/your_money_explained_card.dart';
 import 'widgets/cash_flow_card.dart';
 import 'widgets/financial_health_card.dart';
 import 'widgets/fun_funds_card.dart';
@@ -364,6 +365,8 @@ class DashboardScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           const DailyCheckInCard(),
+          const SizedBox(height: 12),
+          const YourMoneyExplainedCard(),
           const SizedBox(height: 12),
           SafeToSpendCard(currencyFormatter: currencyFormatter),
           const SizedBox(height: 12),

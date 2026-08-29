@@ -353,4 +353,26 @@ class AppSettingsRepository {
     await _box.put(_dailyAwarenessStreakKey, streak);
     await _box.put(_dailyStreakLastDateIsoKey, dateIso);
   }
+
+  static const String _dismissedInsightIdsKey = 'dismissed_insight_ids';
+
+  List<String> dismissedInsightIds() {
+    final list = _box.get(_dismissedInsightIdsKey);
+    if (list is List) {
+      return list.map((e) => e.toString()).toList();
+    }
+    return const [];
+  }
+
+  Future<void> dismissInsight(String insightId) async {
+    final current = dismissedInsightIds();
+    if (!current.contains(insightId)) {
+      final updated = [...current, insightId];
+      await _box.put(_dismissedInsightIdsKey, updated);
+    }
+  }
+
+  Future<void> clearDismissedInsights() async {
+    await _box.delete(_dismissedInsightIdsKey);
+  }
 }
