@@ -526,9 +526,9 @@ class SettingsScreen extends ConsumerWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('About PaySense'),
         content: const Text(
-          'PaySense is an AI-powered personal finance app that helps you '
-          'track spending, budgets, goals, bills, and loans — all stored '
-          'locally on your device.',
+          'PaySense is an independent personal finance companion designed to restore mindful financial awareness in modern digital payments.\n\n'
+          'Featuring Decision Coach ("Think Before You Pay"), Pain of Paying post-purchase evaluation, Safe-to-Spend cash-flow forecasting, Fun Funds, and local SMS transaction detection.\n\n'
+          'Version 1.0.0 • All financial data remains stored locally on your device.',
         ),
         actions: [
           TextButton(
@@ -544,16 +544,27 @@ class SettingsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Privacy & Terms'),
-        content: const Text(
-          'PaySense doesn\'t have published privacy policy or terms of '
-          'service documents yet. All data stays on this device and is not '
-          'sent anywhere.',
+        title: const Text('Privacy & Data Governance'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '• On-Device Data Storage: All transaction history, account balances, budgets, loans, and goals are stored locally on your device via Hive.\n\n'
+                '• SMS Transaction Detection: Bank and UPI SMS parsing occurs entirely on-device. SMS permissions are requested only upon explicit user toggle. Raw SMS content is never transmitted externally.\n\n'
+                '• AI Context Sanitization: AI features use minimal aggregated summary data. Full account numbers, PINs, passwords, and sensitive credentials are never sent to external AI servers.\n\n'
+                '• Independent Application: PaySense is an independent personal finance guide. PaySense is not a bank, financial institution, or payment processor, and cannot directly access or move your bank funds.\n\n'
+                '• Data Control: You can export your data to CSV or wipe local financial databases at any time from Settings.',
+                style: TextStyle(fontSize: 13, height: 1.4),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('OK'),
+            child: const Text('Close'),
           ),
         ],
       ),

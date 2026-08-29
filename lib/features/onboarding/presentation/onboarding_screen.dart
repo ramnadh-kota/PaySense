@@ -21,27 +21,33 @@ class _OnboardingPageData {
 const List<_OnboardingPageData> _pages = <_OnboardingPageData>[
   _OnboardingPageData(
     icon: Icons.account_balance_wallet_rounded,
-    title: 'Welcome to PaySense',
+    title: 'Mindful Money in a Digital World',
     description:
-        'Your AI-powered personal finance companion. Let\'s get your money organized in minutes.',
+        'PaySense helps you spend with awareness and intention, restoring the natural emotional friction that frictionless digital payments removed.',
   ),
   _OnboardingPageData(
-    icon: Icons.receipt_long_rounded,
-    title: 'Track every rupee',
+    icon: Icons.psychology_rounded,
+    title: 'Think Before You Pay & Decision Coach',
     description:
-        'Log income and expenses in seconds and see exactly where your money goes.',
+        'Pause before making purchases. Decision Coach shows real-time impact on your debts, goals, and safe-to-spend headroom.',
   ),
   _OnboardingPageData(
-    icon: Icons.savings_rounded,
-    title: 'Budgets, goals & reminders',
+    icon: Icons.insights_rounded,
+    title: 'Pain of Paying & Safe-to-Spend',
     description:
-        'Set category budgets and savings goals, and automate recurring bills with smart reminders.',
+        'Know your exact safe-to-spend limit after upcoming bills, subscriptions, and EMIs, and feel clear post-purchase awareness without guilt.',
   ),
   _OnboardingPageData(
-    icon: Icons.auto_awesome_rounded,
-    title: 'Meet your AI money coach',
+    icon: Icons.sms_rounded,
+    title: 'Local SMS Detection & Total Privacy',
     description:
-        'Ask questions, get personalized insights, and make smarter financial decisions every day.',
+        'Optionally detect bank and UPI SMS alerts locally on your device. Your data stays 100% private on your phone and is never sold or shared.',
+  ),
+  _OnboardingPageData(
+    icon: Icons.shield_outlined,
+    title: 'Your Independent Money Companion',
+    description:
+        'PaySense is your independent personal finance guide. PaySense is not a bank and never directly moves or accesses your bank accounts.',
   ),
 ];
 
