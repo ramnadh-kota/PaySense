@@ -1013,10 +1013,14 @@ class DashboardScreen extends ConsumerWidget {
           const _FinancialActionsSection(),
           const SizedBox(height: 10),
           const _FinancialSafetyEntryLine(),
+          const SizedBox(height: 10),
           const _BankConnectEntryLine(),
+          const SizedBox(height: 10),
           const _FinancialTrendEntryLine(),
           const _ProactiveInsightsSection(),
+          const SizedBox(height: 10),
           const _FinancialTimelineEntryLine(),
+          const SizedBox(height: 10),
           const _FinancialCompareEntryLine(),
           const SizedBox(height: 24),
           Row(
@@ -1369,75 +1373,76 @@ class _FinancialSafetyEntryLine extends ConsumerWidget {
     if (safetyAsync.isLoading) return const SizedBox.shrink();
     final alerts = safetyAsync.value ?? const [];
 
-    if (alerts.isEmpty) {
-      return InkWell(
-        onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialAlerts),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              Icon(Icons.shield_outlined, size: 16, color: AppColors.success),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'No safety concerns right now',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+    final bool hasAlerts = alerts.isNotEmpty;
+    final topAlert = hasAlerts ? alerts.first : null;
+    final color = hasAlerts
+        ? switch (topAlert!.severity) {
+            FinancialSafetyAlertSeverity.high => AppColors.danger,
+            FinancialSafetyAlertSeverity.attention => AppColors.warning,
+            FinancialSafetyAlertSeverity.info => AppColors.primary,
+          }
+        : AppColors.success;
+
+    final subtitle = hasAlerts
+        ? topAlert!.title.replaceFirst('PaySense insight: ', '')
+        : 'You\'re financially stable right now — no immediate concerns';
+    final chipTint = color.withValues(alpha: 0.12);
+
+    return AppCard(
+      padding: const EdgeInsets.all(16),
+      onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialAlerts),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: chipTint,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              hasAlerts ? Icons.shield_outlined : Icons.shield_rounded,
+              size: 20,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Financial Safety',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
                   ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final topAlert = alerts.first;
-    final color = switch (topAlert.severity) {
-      FinancialSafetyAlertSeverity.high => AppColors.danger,
-      FinancialSafetyAlertSeverity.attention => AppColors.warning,
-      FinancialSafetyAlertSeverity.info => AppColors.primary,
-    };
-
-    return InkWell(
-      onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialAlerts),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline_rounded, size: 16, color: color),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                topAlert.title.replaceFirst('PaySense insight: ', ''),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+              ],
             ),
-            if (alerts.length > 1)
-              Text(
-                '+${alerts.length - 1} more',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
-              ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'View safety →',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// ACCOUNT AGGREGATOR — PART F. A compact Dashboard entry point,
-/// mirroring [_FinancialTrendEntryLine]'s exact visual pattern: no
-/// heading, no extra spacing, reads live connection state so its copy
-/// always reflects reality (never "connected" before a sync actually
-/// confirmed it, matching PHASE 4's own rule).
 class _BankConnectEntryLine extends ConsumerWidget {
   const _BankConnectEntryLine();
 
@@ -1446,18 +1451,18 @@ class _BankConnectEntryLine extends ConsumerWidget {
     final connections = ref.watch(accountAggregatorConnectionsProvider).value ?? const [];
     final active = connections.where((c) => c.status != ConnectionStatus.revoked).toList();
 
-    String title;
+    String subtitle;
     IconData icon;
     Color color;
     String route = AppRoutes.connectedAccounts;
 
     if (active.isEmpty) {
-      title = 'Connect your bank →';
+      subtitle = 'Sync your bank accounts for automated tracking';
       icon = Icons.account_balance_outlined;
       color = AppColors.primary;
       route = AppRoutes.bankConnect;
     } else if (active.any((c) => c.status == ConnectionStatus.failed)) {
-      title = 'Bank sync needs attention';
+      subtitle = 'Bank sync needs attention';
       icon = Icons.error_outline_rounded;
       color = AppColors.danger;
     } else {
@@ -1466,12 +1471,12 @@ class _BankConnectEntryLine extends ConsumerWidget {
           .whereType<DateTime>()
           .fold<DateTime?>(null, (latest, d) => latest == null || d.isAfter(latest) ? d : latest);
       if (mostRecentSync == null) {
-        title = 'Finish connecting your accounts';
+        subtitle = 'Finish connecting your accounts';
         icon = Icons.account_balance_outlined;
         color = AppColors.warning;
       } else {
         final minutesAgo = DateTime.now().difference(mostRecentSync).inMinutes;
-        title = minutesAgo < 60
+        subtitle = minutesAgo < 60
             ? 'Last synced $minutesAgo min ago'
             : 'Last synced ${DateFormat('d MMM').format(mostRecentSync)}';
         icon = Icons.account_balance_rounded;
@@ -1479,26 +1484,52 @@ class _BankConnectEntryLine extends ConsumerWidget {
       }
     }
 
-    return InkWell(
+    return AppCard(
+      padding: const EdgeInsets.all(16),
       onTap: () => Navigator.of(context).pushNamed(route),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
-        ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Bank Connect',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Connect →',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1519,42 +1550,61 @@ class _FinancialTrendEntryLine extends ConsumerWidget {
       case OverallTrajectory.stable:
         return ('Your financial health is steady', Icons.trending_flat_rounded, AppColors.textSecondary);
       case OverallTrajectory.insufficientData:
-        return ('See your financial journey', Icons.auto_graph_rounded, AppColors.primary);
+        return ('See how your financial health changes over time', Icons.auto_graph_rounded, AppColors.primary);
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trajectory = ref.watch(financialHealthTrendsProvider).trajectory;
-    final (title, icon, color) = _copyFor(trajectory);
+    final (subtitle, icon, color) = _copyFor(trajectory);
 
-    return InkWell(
+    return AppCard(
+      padding: const EdgeInsets.all(16),
       onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialHealthTrends),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Financial Journey',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            Text(
-              'View journey →',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Explore journey →',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1576,7 +1626,7 @@ class _ProactiveInsightsSection extends ConsumerWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.only(top: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1671,82 +1721,113 @@ class _InsightCard extends StatelessWidget {
   }
 }
 
-/// FINANCIAL INTELLIGENCE TIMELINE 1.0 (PHASE 6) — ONE compact entry line,
-/// mirroring [_FinancialTrendEntryLine]'s exact pattern: no heading, no
-/// extra spacing of its own, never rearranges the cards around it.
 class _FinancialTimelineEntryLine extends ConsumerWidget {
   const _FinancialTimelineEntryLine();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return InkWell(
+    return AppCard(
+      padding: const EdgeInsets.all(16),
       onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialTimeline),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Icon(Icons.history_rounded, size: 16, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'See your financial timeline',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.history_rounded, size: 20, color: AppColors.primary),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Financial Timeline',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  'Review key financial milestones & historical events',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            Text(
-              'View events →',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'View events →',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// COMPARE PERIODS 1.0 (PHASE 5) — ONE compact entry line, mirroring
-/// [_FinancialTrendEntryLine]/[_FinancialTimelineEntryLine]'s exact
-/// pattern: no heading, no extra spacing of its own, never rearranges the
-/// cards around it, no new Quick Action.
 class _FinancialCompareEntryLine extends StatelessWidget {
   const _FinancialCompareEntryLine();
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return AppCard(
+      padding: const EdgeInsets.all(16),
       onTap: () => Navigator.of(context).pushNamed(AppRoutes.financialCompare),
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Icon(Icons.compare_arrows_rounded, size: 16, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Compare Periods',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.compare_arrows_rounded, size: 20, color: AppColors.primary),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Compare Periods',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  'Analyze income & spending trends between custom periods',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-            Text(
-              "See what's changed →",
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Compare →',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w600,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

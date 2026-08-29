@@ -95,7 +95,7 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       // Gives the fire-and-forget `_flushPendingSmsIfEnabled` a real
       // microtask/event-loop turn to actually run and finish.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(const Duration(milliseconds: 200));
     });
     await tester.pumpAndSettle();
   }
