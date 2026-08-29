@@ -85,6 +85,28 @@ class SpendingDecisionResult {
   /// Supportive, non-judgmental guidance line.
   final String guidanceLine;
 
+  /// High-level recommendation tier for UI badge / signaling.
+  SpendingRecommendationTier get recommendationTier {
+    if (affordability.status == AffordabilityStatus.notRecommended ||
+        (categorySpendingLimit != null &&
+            categorySpendingLimit!.state == SpendingLimitState.exceeded) ||
+        allowance.state == AllowanceState.overAllowance) {
+      return SpendingRecommendationTier.avoid;
+    }
+    if (affordability.status == AffordabilityStatus.risky ||
+        (categorySpendingLimit != null &&
+            categorySpendingLimit!.state == SpendingLimitState.approaching) ||
+        allowance.state == AllowanceState.tight ||
+        allowance.state == AllowanceState.watchful ||
+        painOfPaying.level == PainOfPayingLevel.high ||
+        painOfPaying.level == PainOfPayingLevel.veryHigh) {
+      return SpendingRecommendationTier.thinkAgain;
+    }
+    return SpendingRecommendationTier.spend;
+  }
+
+  String get recommendationLabel => recommendationTier.label;
+
   bool get isComfortable =>
       affordability.status == AffordabilityStatus.comfortable &&
       (categorySpendingLimit == null ||
@@ -97,6 +119,25 @@ class SpendingDecisionResult {
       (categorySpendingLimit != null &&
           categorySpendingLimit!.state == SpendingLimitState.exceeded) ||
       allowance.state == AllowanceState.overAllowance;
+}
+
+enum SpendingRecommendationTier {
+  spend,
+  thinkAgain,
+  avoid,
+}
+
+extension SpendingRecommendationTierExt on SpendingRecommendationTier {
+  String get label {
+    switch (this) {
+      case SpendingRecommendationTier.spend:
+        return 'Comfortable to spend';
+      case SpendingRecommendationTier.thinkAgain:
+        return 'Think again';
+      case SpendingRecommendationTier.avoid:
+        return 'Consider avoiding';
+    }
+  }
 }
 
 class SpendingDecisionCalculator {

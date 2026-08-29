@@ -149,6 +149,8 @@ void main() {
       expect(result.categorySpendingLimit!.state, SpendingLimitState.comfortable);
       expect(result.allowance.state, AllowanceState.comfortable);
       expect(result.affordability.status, AffordabilityStatus.comfortable);
+      expect(result.recommendationTier, SpendingRecommendationTier.spend);
+      expect(result.recommendationLabel, 'Comfortable to spend');
       expect(result.isComfortable, isTrue);
       expect(result.isCautionary, isFalse);
       expect(result.verdictLine, contains('comfortable'));
@@ -173,6 +175,8 @@ void main() {
       );
 
       expect(result.categorySpendingLimit?.state, SpendingLimitState.approaching);
+      expect(result.recommendationTier, SpendingRecommendationTier.thinkAgain);
+      expect(result.recommendationLabel, 'Think again');
       expect(result.verdictLine, contains('Approaching'));
     });
 
@@ -195,6 +199,8 @@ void main() {
       );
 
       expect(result.categorySpendingLimit?.state, SpendingLimitState.exceeded);
+      expect(result.recommendationTier, SpendingRecommendationTier.avoid);
+      expect(result.recommendationLabel, 'Consider avoiding');
       expect(result.isCautionary, isTrue);
       expect(result.verdictLine, contains('Category limit reached'));
     });
@@ -214,6 +220,7 @@ void main() {
       );
 
       expect(result.affordability.status, AffordabilityStatus.notRecommended);
+      expect(result.recommendationTier, SpendingRecommendationTier.avoid);
       expect(result.isCautionary, isTrue);
       expect(result.verdictLine, contains('exceeds your available'));
     });

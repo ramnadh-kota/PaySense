@@ -128,6 +128,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         builder: (context) {
           return DecisionCoachDialog(
             amount: decision.amount,
+            decision: decision,
             emiPercentage: decision.impact.emiPercentage,
             savingsGoalPercentage: decision.impact.savingsGoalPercentage,
             comparisonMessage: decision.impact.perspectiveMessage,
