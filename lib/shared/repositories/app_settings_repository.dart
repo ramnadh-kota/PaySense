@@ -308,4 +308,49 @@ class AppSettingsRepository {
         return LockTimeout.immediately;
     }
   }
+
+  // ---- Daily Money Awareness & Retention Engine ----
+  static const String _dailyCheckInLastDateIsoKey = 'dailyCheckInLastDateIso';
+  static const String _dailyCheckInMoodKey = 'dailyCheckInMood';
+  static const String _dailyAwarenessStreakKey = 'dailyAwarenessStreak';
+  static const String _dailyStreakLastDateIsoKey = 'dailyStreakLastDateIso';
+
+  String? dailyCheckInLastDateIso() => _box.get(_dailyCheckInLastDateIsoKey) as String?;
+  String? dailyCheckInMood() => _box.get(_dailyCheckInMoodKey) as String?;
+  int dailyAwarenessStreak() => (_box.get(_dailyAwarenessStreakKey) as int?) ?? 1;
+  String? dailyStreakLastDateIso() => _box.get(_dailyStreakLastDateIsoKey) as String?;
+
+  Future<void> setDailyCheckIn({
+    required String dateIso,
+    required String mood,
+    required int streak,
+  }) async {
+    await _box.put(_dailyCheckInLastDateIsoKey, dateIso);
+    await _box.put(_dailyCheckInMoodKey, mood);
+    await _box.put(_dailyAwarenessStreakKey, streak);
+    await _box.put(_dailyStreakLastDateIsoKey, dateIso);
+  }
+
+  Future<void> recordDailyStreakActivity(String dateIso) async {
+    final lastIso = dailyStreakLastDateIso();
+    int streak = dailyAwarenessStreak();
+    if (lastIso == null || lastIso.isEmpty) {
+      streak = 1;
+    } else {
+      final lastDate = DateTime.tryParse(lastIso);
+      final currentDate = DateTime.tryParse(dateIso);
+      if (lastDate != null && currentDate != null) {
+        final diff = DateTime(currentDate.year, currentDate.month, currentDate.day)
+            .difference(DateTime(lastDate.year, lastDate.month, lastDate.day))
+            .inDays;
+        if (diff == 1) {
+          streak += 1;
+        } else if (diff > 1) {
+          streak = 1;
+        }
+      }
+    }
+    await _box.put(_dailyAwarenessStreakKey, streak);
+    await _box.put(_dailyStreakLastDateIsoKey, dateIso);
+  }
 }
