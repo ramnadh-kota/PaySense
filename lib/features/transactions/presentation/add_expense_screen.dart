@@ -15,7 +15,7 @@ import 'package:paysense/shared/providers/wallet_provider.dart';
 import 'package:paysense/shared/repositories/transaction_repository.dart';
 import 'package:paysense/shared/repositories/wallet_repository.dart';
 import 'package:paysense/shared/utils/pain_of_paying_engine.dart';
-import 'package:paysense/shared/utils/purchase_impact_calculator.dart';
+import 'package:paysense/shared/utils/spending_decision_calculator.dart';
 import 'package:paysense/shared/widgets/decision_coach_dialog.dart';
 import 'package:paysense/shared/widgets/pain_of_paying_sheet.dart';
 import 'package:paysense/shared/widgets/wallet_selector_field.dart';
@@ -94,22 +94,28 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // BUG FIX (stale Think Before You Pay): these three insights used to
-      // be hardcoded literals (emiPercentage: 18, savingsGoalPercentage: 3,
-      // a fixed "two days of groceries" string) that never reflected the
-      // amount actually entered. They're now computed fresh, from the SAME
-      // `amount` just parsed above, every time this dialog is about to
-      // open — a read-only calculation that never touches a repository.
+      // Phase 6C Spending Decision Integration: connects SpendingLimitCalculator,
+      // AllowanceCalculator, AffordabilityCalculator, and PurchaseImpactCalculator
+      // into the Decision Coach dialog before confirming a purchase.
       final planning = ref.read(financialPlanningProvider);
       final goals = ref.read(goalsProvider).value ?? const <Goal>[];
       final transactions = ref.read(transactionsProvider).value ?? const <Transaction>[];
-      final impact = PurchaseImpactCalculator.calculate(
-        amount: amount,
-        monthlyEmiBurden: planning.debt.monthlyEmiBurden,
-        goals: goals,
-        transactions: transactions,
-        category: _selectedCategory,
-        now: DateTime.now(),
+      final budgets = ref.read(budgetsProvider).value ?? const <Budget>[];
+      final safeToSpend = ref.read(safeToSpendProvider);
+      final now = DateTime.now();
+
+      final decision = SpendingDecisionCalculator.evaluate(
+        SpendingDecisionInput(
+          amount: amount,
+          categoryId: _selectedCategory ?? 'uncategorized',
+          itemDescription: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+          safeToSpend: safeToSpend,
+          planning: planning,
+          budgets: budgets,
+          goals: goals,
+          transactions: transactions,
+          now: now,
+        ),
       );
 
       if (!mounted) {
@@ -121,10 +127,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         barrierDismissible: false,
         builder: (context) {
           return DecisionCoachDialog(
-            amount: impact.amount,
-            emiPercentage: impact.emiPercentage,
-            savingsGoalPercentage: impact.savingsGoalPercentage,
-            comparisonMessage: impact.perspectiveMessage,
+            amount: decision.amount,
+            emiPercentage: decision.impact.emiPercentage,
+            savingsGoalPercentage: decision.impact.savingsGoalPercentage,
+            comparisonMessage: decision.impact.perspectiveMessage,
+            categorySpendingLimit: decision.categorySpendingLimit,
+            allowance: decision.allowance,
+            verdictLine: decision.verdictLine,
+            guidanceLine: decision.guidanceLine,
           );
         },
       );
@@ -161,8 +171,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       // fact, never a second confirm/cancel gate. Only shown when there's
       // genuinely something to say (level != low), so a routine small
       // purchase never interrupts the flow.
-      final budgets = ref.read(budgetsProvider).value ?? const <Budget>[];
-      final safeToSpend = ref.read(safeToSpendProvider);
       final painOfPaying = PainOfPayingEngine.evaluate(
         amount: amount,
         categoryId: transaction.categoryId,

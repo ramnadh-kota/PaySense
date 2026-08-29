@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 
+import '../utils/allowance_calculator.dart';
+import '../utils/spending_limit_calculator.dart';
+
 /// A premium decision-coaching dialog shown before confirming a purchase.
 class DecisionCoachDialog extends StatelessWidget {
   const DecisionCoachDialog({
@@ -10,6 +13,10 @@ class DecisionCoachDialog extends StatelessWidget {
     required this.emiPercentage,
     required this.savingsGoalPercentage,
     required this.comparisonMessage,
+    this.categorySpendingLimit,
+    this.allowance,
+    this.verdictLine,
+    this.guidanceLine,
   });
 
   final double amount;
@@ -24,6 +31,11 @@ class DecisionCoachDialog extends StatelessWidget {
   final double? savingsGoalPercentage;
 
   final String comparisonMessage;
+
+  final SpendingLimitStatus? categorySpendingLimit;
+  final AllowanceResult? allowance;
+  final String? verdictLine;
+  final String? guidanceLine;
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +123,22 @@ class DecisionCoachDialog extends StatelessWidget {
                 title: 'Savings Goal',
                 body:
                     '${currencyFormatter.format(amount)} would represent ${savingsGoalPercentage!.toStringAsFixed(0)}% of your remaining goal amount.',
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (categorySpendingLimit != null) ...[
+              _InsightCard(
+                icon: Icons.speed_rounded,
+                title: '${categorySpendingLimit!.categoryName} Limit',
+                body: categorySpendingLimit!.summaryLine,
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (allowance != null && allowance!.hasSufficientData) ...[
+              _InsightCard(
+                icon: Icons.account_balance_rounded,
+                title: 'Discretionary Allowance',
+                body: allowance!.summaryLine,
               ),
               const SizedBox(height: 12),
             ],
