@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:paysense/core/constants/app_colors.dart';
 import 'package:paysense/core/routes/app_routes.dart';
+import 'package:paysense/core/services/notification_service.dart';
 import 'package:paysense/shared/models/app_lock_settings.dart';
 import 'package:paysense/shared/models/app_settings.dart';
 import 'package:paysense/shared/providers/app_lock_provider.dart';
@@ -706,44 +707,100 @@ class _NotificationToggles extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final masterOn = settings.allowNotifications;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Notifications',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Allow Notifications',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+              Switch(
+                value: masterOn,
+                activeThumbColor: AppColors.primary,
+                onChanged: (value) async {
+                  if (value) {
+                    await NotificationService.instance.requestNotificationsPermission();
+                  }
+                  ref.read(settingsProvider.notifier).setAllowNotifications(value);
+                },
+              ),
+            ],
+          ),
+          if (masterOn) ...[
+            const _TileDivider(),
+            _NotificationSwitchRow(
+              label: 'Daily Money Check-In',
+              subtitle: '10-second daily sentiment & streak check-in',
+              value: settings.dailyCheckInNotifications,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setDailyCheckInNotifications(value),
             ),
-          ),
-          _NotificationSwitchRow(
-            label: 'Bill reminders',
-            value: settings.billReminders,
-            onChanged: (value) =>
-                ref.read(settingsProvider.notifier).setBillReminders(value),
-          ),
-          _NotificationSwitchRow(
-            label: 'Recurring payment reminders',
-            value: settings.recurringReminders,
-            onChanged: (value) => ref
-                .read(settingsProvider.notifier)
-                .setRecurringReminders(value),
-          ),
-          _NotificationSwitchRow(
-            label: 'Loan/EMI reminders',
-            value: settings.loanReminders,
-            onChanged: (value) =>
-                ref.read(settingsProvider.notifier).setLoanReminders(value),
-          ),
-          _NotificationSwitchRow(
-            label: 'Proactive financial insights',
-            value: settings.insightNotifications,
-            onChanged: (value) => ref
-                .read(settingsProvider.notifier)
-                .setInsightNotifications(value),
-          ),
+            _NotificationSwitchRow(
+              label: 'Safe-to-Spend Alerts',
+              subtitle: 'Notifies when spending room becomes tight',
+              value: settings.safeToSpendNotifications,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setSafeToSpendNotifications(value),
+            ),
+            _NotificationSwitchRow(
+              label: 'Important Money Insights',
+              subtitle: 'Critical & high-priority financial changes',
+              value: settings.importantInsightNotifications,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setImportantInsightNotifications(value),
+            ),
+            _NotificationSwitchRow(
+              label: 'Goal Reminders',
+              subtitle: 'Approaching goal timelines & target alerts',
+              value: settings.goalReminderNotifications,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setGoalReminderNotifications(value),
+            ),
+            _NotificationSwitchRow(
+              label: 'Weekly Money Story',
+              subtitle: 'Weekly spending & savings snapshot',
+              value: settings.weeklyStoryNotifications,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setWeeklyStoryNotifications(value),
+            ),
+            _NotificationSwitchRow(
+              label: 'Quiet Hours (10:00 PM – 8:00 AM)',
+              subtitle: 'Suppresses background notifications overnight',
+              value: settings.quietHoursEnabled,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setQuietHoursEnabled(value),
+            ),
+            const _TileDivider(),
+            _NotificationSwitchRow(
+              label: 'Bill reminders',
+              value: settings.billReminders,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setBillReminders(value),
+            ),
+            _NotificationSwitchRow(
+              label: 'Recurring payment reminders',
+              value: settings.recurringReminders,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setRecurringReminders(value),
+            ),
+            _NotificationSwitchRow(
+              label: 'Loan/EMI reminders',
+              value: settings.loanReminders,
+              onChanged: (value) =>
+                  ref.read(settingsProvider.notifier).setLoanReminders(value),
+            ),
+          ],
         ],
       ),
     );
@@ -755,9 +812,11 @@ class _NotificationSwitchRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.subtitle,
   });
 
   final String label;
+  final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -766,11 +825,26 @@ class _NotificationSwitchRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: AppColors.textSecondary, fontSize: 10),
+                ),
+              ],
+            ],
           ),
         ),
         Switch(

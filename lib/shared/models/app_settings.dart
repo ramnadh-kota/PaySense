@@ -2,14 +2,6 @@ import 'package:flutter/foundation.dart';
 
 enum AppThemeMode { system, light, dark }
 
-/// Plain (non-Hive) value object for app-level preferences. Persisted via
-/// [AppSettingsRepository] in the existing untyped 'app_settings' box —
-/// individual keys, not a typed record, matching how [isFirstLaunch] is
-/// already stored.
-///
-/// Currency and country are deliberately NOT here — they already live on
-/// [UserProfile] and are edited through it, so this model doesn't duplicate
-/// that data.
 @immutable
 class AppSettings {
   const AppSettings({
@@ -19,22 +11,34 @@ class AppSettings {
     this.loanReminders = true,
     this.smsAutomationEnabled = false,
     this.insightNotifications = true,
+    this.allowNotifications = true,
+    this.dailyCheckInNotifications = true,
+    this.safeToSpendNotifications = true,
+    this.importantInsightNotifications = true,
+    this.goalReminderNotifications = true,
+    this.weeklyStoryNotifications = true,
+    this.quietHoursEnabled = true,
+    this.quietHoursStartHour = 22,
+    this.quietHoursEndHour = 8,
   });
 
   final AppThemeMode themeMode;
   final bool billReminders;
   final bool recurringReminders;
   final bool loanReminders;
-
-  /// Whether PaySense should automatically detect bank/UPI transactions
-  /// from incoming SMS. Off by default — SMS permissions are only ever
-  /// requested after the user explicitly turns this on.
   final bool smsAutomationEnabled;
-
-  /// Whether critical/high-priority Proactive Financial Insights (PHASE 7)
-  /// should be recorded as in-app notifications. On by default, matching
-  /// [billReminders]/[recurringReminders]/[loanReminders].
   final bool insightNotifications;
+
+  // Phase 5 Proactive Notification Preferences
+  final bool allowNotifications;
+  final bool dailyCheckInNotifications;
+  final bool safeToSpendNotifications;
+  final bool importantInsightNotifications;
+  final bool goalReminderNotifications;
+  final bool weeklyStoryNotifications;
+  final bool quietHoursEnabled;
+  final int quietHoursStartHour;
+  final int quietHoursEndHour;
 
   AppSettings copyWith({
     AppThemeMode? themeMode,
@@ -43,6 +47,15 @@ class AppSettings {
     bool? loanReminders,
     bool? smsAutomationEnabled,
     bool? insightNotifications,
+    bool? allowNotifications,
+    bool? dailyCheckInNotifications,
+    bool? safeToSpendNotifications,
+    bool? importantInsightNotifications,
+    bool? goalReminderNotifications,
+    bool? weeklyStoryNotifications,
+    bool? quietHoursEnabled,
+    int? quietHoursStartHour,
+    int? quietHoursEndHour,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -51,6 +64,20 @@ class AppSettings {
       loanReminders: loanReminders ?? this.loanReminders,
       smsAutomationEnabled: smsAutomationEnabled ?? this.smsAutomationEnabled,
       insightNotifications: insightNotifications ?? this.insightNotifications,
+      allowNotifications: allowNotifications ?? this.allowNotifications,
+      dailyCheckInNotifications:
+          dailyCheckInNotifications ?? this.dailyCheckInNotifications,
+      safeToSpendNotifications:
+          safeToSpendNotifications ?? this.safeToSpendNotifications,
+      importantInsightNotifications:
+          importantInsightNotifications ?? this.importantInsightNotifications,
+      goalReminderNotifications:
+          goalReminderNotifications ?? this.goalReminderNotifications,
+      weeklyStoryNotifications:
+          weeklyStoryNotifications ?? this.weeklyStoryNotifications,
+      quietHoursEnabled: quietHoursEnabled ?? this.quietHoursEnabled,
+      quietHoursStartHour: quietHoursStartHour ?? this.quietHoursStartHour,
+      quietHoursEndHour: quietHoursEndHour ?? this.quietHoursEndHour,
     );
   }
 
@@ -66,16 +93,34 @@ class AppSettings {
         other.recurringReminders == recurringReminders &&
         other.loanReminders == loanReminders &&
         other.smsAutomationEnabled == smsAutomationEnabled &&
-        other.insightNotifications == insightNotifications;
+        other.insightNotifications == insightNotifications &&
+        other.allowNotifications == allowNotifications &&
+        other.dailyCheckInNotifications == dailyCheckInNotifications &&
+        other.safeToSpendNotifications == safeToSpendNotifications &&
+        other.importantInsightNotifications == importantInsightNotifications &&
+        other.goalReminderNotifications == goalReminderNotifications &&
+        other.weeklyStoryNotifications == weeklyStoryNotifications &&
+        other.quietHoursEnabled == quietHoursEnabled &&
+        other.quietHoursStartHour == quietHoursStartHour &&
+        other.quietHoursEndHour == quietHoursEndHour;
   }
 
   @override
   int get hashCode => Object.hash(
-    themeMode,
-    billReminders,
-    recurringReminders,
-    loanReminders,
-    smsAutomationEnabled,
-    insightNotifications,
-  );
+        themeMode,
+        billReminders,
+        recurringReminders,
+        loanReminders,
+        smsAutomationEnabled,
+        insightNotifications,
+        allowNotifications,
+        dailyCheckInNotifications,
+        safeToSpendNotifications,
+        importantInsightNotifications,
+        goalReminderNotifications,
+        weeklyStoryNotifications,
+        quietHoursEnabled,
+        quietHoursStartHour,
+        quietHoursEndHour,
+      );
 }

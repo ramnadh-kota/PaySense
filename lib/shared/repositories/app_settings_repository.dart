@@ -18,6 +18,30 @@ class AppSettingsRepository {
   static const String _recurringRemindersKey = 'notifyRecurringReminders';
   static const String _loanRemindersKey = 'notifyLoanReminders';
   static const String _insightNotificationsKey = 'notifyInsights';
+
+  // Phase 5 Proactive Notification Keys
+  static const String _allowNotificationsKey = 'allowNotifications';
+  static const String _dailyCheckInNotificationsKey = 'notifyDailyCheckIn';
+  static const String _safeToSpendNotificationsKey = 'notifySafeToSpend';
+  static const String _importantInsightNotificationsKey = 'notifyImportantInsights';
+  static const String _goalReminderNotificationsKey = 'notifyGoalReminders';
+  static const String _weeklyStoryNotificationsKey = 'notifyWeeklyStory';
+  static const String _quietHoursEnabledKey = 'quietHoursEnabled';
+  static const String _quietHoursStartHourKey = 'quietHoursStartHour';
+  static const String _quietHoursEndHourKey = 'quietHoursEndHour';
+
+  // Deduplication & Daily Cap Tracking Keys
+  static const String _lastCheckInNotificationDateIsoKey = 'lastCheckInNotificationDateIso';
+  static const String _lastSafeToSpendStateKey = 'lastSafeToSpendState';
+  static const String _lastSafeToSpendNotificationDateIsoKey = 'lastSafeToSpendNotificationDateIso';
+  static const String _lastInsightNotificationIdKey = 'lastInsightNotificationId';
+  static const String _lastInsightNotificationDateIsoKey = 'lastInsightNotificationDateIso';
+  static const String _lastGoalNotificationIdKey = 'lastGoalNotificationId';
+  static const String _lastGoalNotificationDateIsoKey = 'lastGoalNotificationDateIso';
+  static const String _lastWeeklyStoryNotificationDateIsoKey = 'lastWeeklyStoryNotificationDateIso';
+  static const String _dailyProactiveCountDateIsoKey = 'dailyProactiveCountDateIso';
+  static const String _dailyProactiveCountKey = 'dailyProactiveCount';
+
   static const String _appLockEnabledKey = 'appLockEnabled';
   static const String _appLockMethodKey = 'appLockMethod';
   static const String _appLockTimeoutKey = 'appLockTimeout';
@@ -56,11 +80,6 @@ class AppSettingsRepository {
     await _box.put(_isFirstLaunchKey, false);
   }
 
-  /// Whether the one-time `Transaction.accountId` legacy-label-to-wallet-id
-  /// migration (see `TransactionAccountMigration`) has already completed —
-  /// purely an optimization to skip re-scanning every transaction on every
-  /// app start once there's nothing left to do; the migration itself is
-  /// idempotent even without this flag.
   Future<bool> isWalletTransactionAccountMigrationV1Complete() async {
     return (_box.get(_walletTransactionAccountMigrationV1Key) as bool?) ?? false;
   }
@@ -77,6 +96,15 @@ class AppSettingsRepository {
       loanReminders: (_box.get(_loanRemindersKey) as bool?) ?? true,
       smsAutomationEnabled: (_box.get(_smsAutomationEnabledKey) as bool?) ?? false,
       insightNotifications: (_box.get(_insightNotificationsKey) as bool?) ?? true,
+      allowNotifications: (_box.get(_allowNotificationsKey) as bool?) ?? true,
+      dailyCheckInNotifications: (_box.get(_dailyCheckInNotificationsKey) as bool?) ?? true,
+      safeToSpendNotifications: (_box.get(_safeToSpendNotificationsKey) as bool?) ?? true,
+      importantInsightNotifications: (_box.get(_importantInsightNotificationsKey) as bool?) ?? true,
+      goalReminderNotifications: (_box.get(_goalReminderNotificationsKey) as bool?) ?? true,
+      weeklyStoryNotifications: (_box.get(_weeklyStoryNotificationsKey) as bool?) ?? true,
+      quietHoursEnabled: (_box.get(_quietHoursEnabledKey) as bool?) ?? true,
+      quietHoursStartHour: (_box.get(_quietHoursStartHourKey) as int?) ?? 22,
+      quietHoursEndHour: (_box.get(_quietHoursEndHourKey) as int?) ?? 8,
     );
   }
 
@@ -102,6 +130,87 @@ class AppSettingsRepository {
 
   Future<void> setInsightNotifications(bool enabled) async {
     await _box.put(_insightNotificationsKey, enabled);
+  }
+
+  Future<void> setAllowNotifications(bool enabled) async {
+    await _box.put(_allowNotificationsKey, enabled);
+  }
+
+  Future<void> setDailyCheckInNotifications(bool enabled) async {
+    await _box.put(_dailyCheckInNotificationsKey, enabled);
+  }
+
+  Future<void> setSafeToSpendNotifications(bool enabled) async {
+    await _box.put(_safeToSpendNotificationsKey, enabled);
+  }
+
+  Future<void> setImportantInsightNotifications(bool enabled) async {
+    await _box.put(_importantInsightNotificationsKey, enabled);
+  }
+
+  Future<void> setGoalReminderNotifications(bool enabled) async {
+    await _box.put(_goalReminderNotificationsKey, enabled);
+  }
+
+  Future<void> setWeeklyStoryNotifications(bool enabled) async {
+    await _box.put(_weeklyStoryNotificationsKey, enabled);
+  }
+
+  Future<void> setQuietHoursEnabled(bool enabled) async {
+    await _box.put(_quietHoursEnabledKey, enabled);
+  }
+
+  Future<void> setQuietHoursStartHour(int hour) async {
+    await _box.put(_quietHoursStartHourKey, hour);
+  }
+
+  Future<void> setQuietHoursEndHour(int hour) async {
+    await _box.put(_quietHoursEndHourKey, hour);
+  }
+
+  // Phase 5 Deduplication & Daily Cap Persistence Methods
+
+  String? lastCheckInNotificationDateIso() => _box.get(_lastCheckInNotificationDateIsoKey) as String?;
+  Future<void> setLastCheckInNotificationDateIso(String dateIso) async {
+    await _box.put(_lastCheckInNotificationDateIsoKey, dateIso);
+  }
+
+  String? lastSafeToSpendNotificationState() => _box.get(_lastSafeToSpendStateKey) as String?;
+  String? lastSafeToSpendNotificationDateIso() => _box.get(_lastSafeToSpendNotificationDateIsoKey) as String?;
+  Future<void> setLastSafeToSpendNotificationState(String state, String dateIso) async {
+    await _box.put(_lastSafeToSpendStateKey, state);
+    await _box.put(_lastSafeToSpendNotificationDateIsoKey, dateIso);
+  }
+
+  String? lastInsightNotificationId() => _box.get(_lastInsightNotificationIdKey) as String?;
+  String? lastInsightNotificationDateIso() => _box.get(_lastInsightNotificationDateIsoKey) as String?;
+  Future<void> setLastInsightNotificationId(String id, String dateIso) async {
+    await _box.put(_lastInsightNotificationIdKey, id);
+    await _box.put(_lastInsightNotificationDateIsoKey, dateIso);
+  }
+
+  String? lastGoalNotificationId() => _box.get(_lastGoalNotificationIdKey) as String?;
+  String? lastGoalNotificationDateIso() => _box.get(_lastGoalNotificationDateIsoKey) as String?;
+  Future<void> setLastGoalNotificationId(String id, String dateIso) async {
+    await _box.put(_lastGoalNotificationIdKey, id);
+    await _box.put(_lastGoalNotificationDateIsoKey, dateIso);
+  }
+
+  String? lastWeeklyStoryNotificationDateIso() => _box.get(_lastWeeklyStoryNotificationDateIsoKey) as String?;
+  Future<void> setLastWeeklyStoryNotificationDateIso(String dateIso) async {
+    await _box.put(_lastWeeklyStoryNotificationDateIsoKey, dateIso);
+  }
+
+  int dailyProactiveNotificationCount(String todayIso) {
+    final recordedDate = _box.get(_dailyProactiveCountDateIsoKey) as String?;
+    if (recordedDate != todayIso) return 0;
+    return (_box.get(_dailyProactiveCountKey) as int?) ?? 0;
+  }
+
+  Future<void> incrementDailyProactiveNotificationCount(String todayIso) async {
+    final count = dailyProactiveNotificationCount(todayIso) + 1;
+    await _box.put(_dailyProactiveCountDateIsoKey, todayIso);
+    await _box.put(_dailyProactiveCountKey, count);
   }
 
   /// Synchronous reads used by non-UI call sites (notification scheduling)

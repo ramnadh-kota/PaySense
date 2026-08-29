@@ -3,25 +3,24 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
-/// Wraps `flutter_local_notifications` to schedule reminders for upcoming
-/// recurring payments. All platform calls are best-effort: failures (e.g.
-/// running on a platform/test harness without notification support) are
-/// swallowed so the rest of the app keeps working.
 class NotificationService {
   NotificationService._();
 
   static final NotificationService instance = NotificationService._();
 
-  final FlutterLocalNotificationsPlugin _plugin =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
   bool _timezoneReady = false;
 
   static const String _channelId = 'recurring_payments';
   static const String _channelName = 'Upcoming Payments';
-  static const String _channelDescription =
-      'Reminders for upcoming recurring income and expenses';
+  static const String _channelDescription = 'Reminders for upcoming recurring income and expenses';
+
+  static const String proactiveChannelId = 'paysense_proactive_awareness';
+  static const String proactiveChannelName = 'Money Awareness & Insights';
+  static const String proactiveChannelDescription =
+      'Proactive, calm reminders for Daily Check-In, Safe-to-Spend, and important money insights';
 
   Future<void> initialize() async {
     if (_initialized) {
@@ -38,9 +37,7 @@ class NotificationService {
     }
 
     try {
-      const androidSettings = AndroidInitializationSettings(
-        '@mipmap/ic_launcher',
-      );
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const iosSettings = DarwinInitializationSettings();
       const settings = InitializationSettings(
         android: androidSettings,
@@ -49,24 +46,75 @@ class NotificationService {
       );
       await _plugin.initialize(settings: settings);
 
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission();
+      final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
 
-      await _plugin
-          .resolvePlatformSpecificImplementation<
-            IOSFlutterLocalNotificationsPlugin
-          >()
-          ?.requestPermissions(alert: true, badge: true, sound: true);
+      if (androidPlugin != null) {
+        await androidPlugin.createNotificationChannel(
+          const AndroidNotificationChannel(
+            proactiveChannelId,
+            proactiveChannelName,
+            description: proactiveChannelDescription,
+            importance: Importance.high,
+          ),
+        );
+      }
     } catch (error) {
       debugPrint('NotificationService: initialize failed: $error');
     }
   }
 
-  /// Schedules a reminder notification at [scheduledDate]. Does nothing if
-  /// the date has already passed or the platform doesn't support scheduling.
+  Future<bool> requestNotificationsPermission() async {
+    try {
+      final androidRes = await _plugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+
+      final iosRes = await _plugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+
+      return androidRes ?? iosRes ?? false;
+    } catch (error) {
+      debugPrint('NotificationService: requestNotificationsPermission failed: $error');
+      return false;
+    }
+  }
+
+  Future<void> showImmediateNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+    String channelId = proactiveChannelId,
+  }) async {
+    try {
+      final androidDetails = AndroidNotificationDetails(
+        channelId,
+        channelId == proactiveChannelId ? proactiveChannelName : _channelName,
+        channelDescription:
+            channelId == proactiveChannelId ? proactiveChannelDescription : _channelDescription,
+        importance: Importance.high,
+        priority: Priority.high,
+      );
+      final details = NotificationDetails(
+        android: androidDetails,
+        iOS: const DarwinNotificationDetails(),
+        macOS: const DarwinNotificationDetails(),
+      );
+
+      await _plugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: details,
+        payload: payload,
+      );
+    } catch (error) {
+      debugPrint('NotificationService: showImmediateNotification failed: $error');
+    }
+  }
+
   Future<void> scheduleReminder({
     required String id,
     required String title,

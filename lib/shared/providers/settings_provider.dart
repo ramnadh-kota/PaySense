@@ -79,6 +79,78 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     ));
   }
 
+  Future<void> setAllowNotifications(bool enabled) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setAllowNotifications(enabled);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      allowNotifications: enabled,
+    ));
+  }
+
+  Future<void> setDailyCheckInNotifications(bool enabled) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setDailyCheckInNotifications(enabled);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      dailyCheckInNotifications: enabled,
+    ));
+  }
+
+  Future<void> setSafeToSpendNotifications(bool enabled) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setSafeToSpendNotifications(enabled);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      safeToSpendNotifications: enabled,
+    ));
+  }
+
+  Future<void> setImportantInsightNotifications(bool enabled) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setImportantInsightNotifications(enabled);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      importantInsightNotifications: enabled,
+    ));
+  }
+
+  Future<void> setGoalReminderNotifications(bool enabled) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setGoalReminderNotifications(enabled);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      goalReminderNotifications: enabled,
+    ));
+  }
+
+  Future<void> setWeeklyStoryNotifications(bool enabled) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setWeeklyStoryNotifications(enabled);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      weeklyStoryNotifications: enabled,
+    ));
+  }
+
+  Future<void> setQuietHoursEnabled(bool enabled) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setQuietHoursEnabled(enabled);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      quietHoursEnabled: enabled,
+    ));
+  }
+
+  Future<void> setQuietHoursStartHour(int hour) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setQuietHoursStartHour(hour);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      quietHoursStartHour: hour,
+    ));
+  }
+
+  Future<void> setQuietHoursEndHour(int hour) async {
+    final repo = ref.read(appSettingsRepositoryProvider);
+    await repo.setQuietHoursEndHour(hour);
+    state = AsyncValue.data((state.value ?? const AppSettings()).copyWith(
+      quietHoursEndHour: hour,
+    ));
+  }
+
   /// Clears only financial records (transactions, wallets, budgets, goals,
   /// recurring transactions, bills, loans) and any scheduled reminders.
   /// Never touches the authenticated account, [UserProfile], or settings.
