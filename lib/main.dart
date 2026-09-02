@@ -74,6 +74,7 @@ Future<void> main() async {
   // see SmsFingerprintRepository.
   await Hive.openBox('sms_processed_fingerprints');
   await Hive.openBox<TaxSettings>('tax_settings');
+  await Hive.openBox('financial_accounts');
 
   await NotificationService.instance.initialize();
 
